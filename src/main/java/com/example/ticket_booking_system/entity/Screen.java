@@ -26,6 +26,4 @@ public class Screen {
     @JoinColumn(name = "theatre_id" , nullable = false)
     private Theatre theatre;
 
-    @OneToMany(mappedBy = "screen", cascade = CascadeType.ALL)
-    private List<Seat> seats;
 }

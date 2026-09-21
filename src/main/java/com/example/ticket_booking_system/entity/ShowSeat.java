@@ -11,22 +11,28 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "seats")
-public class Seat {
+@Table(name="show_seats")
+public class ShowSeat {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private int seatNumber;
-
-    @Column(nullable = false)
-    private String seatRow;
-
-    @Column(nullable = false)
-    private String category;
+    @ManyToOne
+    @JoinColumn(name = "show_id", nullable = false)
+    private Show show;
 
     @ManyToOne
-    @JoinColumn(name = "screen_id", nullable = false)
-    private Screen screen;
+    @JoinColumn(name = "seat_id", nullable = false)
+    private Seat seat;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private SeatStatus status;
+
+    @Column(nullable = false)
+    private Double price;
+
+    @ManyToOne
+    @JoinColumn(name = "booking_id")
+    private Booking booking;
 }

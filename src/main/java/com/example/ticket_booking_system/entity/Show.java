@@ -6,27 +6,33 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "seats")
-public class Seat {
+@Table(name="shows")
+public class Show {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private int seatNumber;
-
-    @Column(nullable = false)
-    private String seatRow;
-
-    @Column(nullable = false)
-    private String category;
+    @ManyToOne
+    @JoinColumn(name="event_id",nullable = false)
+    private Event event;
 
     @ManyToOne
-    @JoinColumn(name = "screen_id", nullable = false)
+    @JoinColumn(name="screen_id",nullable = false)
     private Screen screen;
+
+    @Column(nullable = false)
+    private LocalDateTime startTime;
+
+    @Column(nullable = false)
+    private LocalDateTime endTime;
+
+    @Column(nullable = false)
+    private Double ticketPrice;
 }
