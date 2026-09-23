@@ -34,6 +34,15 @@ public class GlobalExceptionHandler {
         return error;
     }
 
+    @ExceptionHandler(ShowSeatNotAvailableException.class)
+    public Map<String,String> handleShowSeatNotAvailableException(ShowSeatNotAvailableException e){
+        Map<String,String> error = new HashMap<>();
+
+        error.put("error", "One or more selected seats were just booked by someone else.");
+
+        return error;
+    }
+
 }
 
 
