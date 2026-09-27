@@ -33,11 +33,11 @@ public class Booking {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private PaymentStatus payment_status;
+    private PaymentStatus paymentStatus;
 
     @Column(nullable = false)
-    private LocalDateTime booking_time;
+    private LocalDateTime bookingTime;
 
     @OneToMany(mappedBy = "booking")
-    private List<ShowSeat> seats_booked;
+    private List<ShowSeat> seatsBooked;
 }
