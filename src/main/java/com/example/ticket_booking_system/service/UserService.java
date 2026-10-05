@@ -5,14 +5,17 @@ import com.example.ticket_booking_system.dto.CreateUserResponseDto;
 import com.example.ticket_booking_system.entity.User;
 import com.example.ticket_booking_system.exception.DuplicateEmailsException;
 import com.example.ticket_booking_system.repository.UserRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
 public class UserService {
     UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
-    UserService(UserRepository userRepository){
+    UserService(UserRepository userRepository,PasswordEncoder passwordEncoder){
         this.userRepository =  userRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public CreateUserResponseDto addUser(CreateUserRequestDto dto){
@@ -28,7 +31,7 @@ public class UserService {
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
         user.setRole(dto.getRole());
-        user.setPassword(dto.getPassword());
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
         return user;
     }
 

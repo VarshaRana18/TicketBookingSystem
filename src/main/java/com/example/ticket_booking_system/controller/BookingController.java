@@ -36,7 +36,7 @@ public class BookingController {
     }
 
     // 3. Initiate the booking (Lock the seats)
-    @GetMapping("bookings/initiate")
+    @PostMapping("bookings/initiate")
     public ResponseEntity<InitiateBookingResponseDto> initiateBooking(@Valid @RequestBody InitiateBookingRequestDto requestDto){
         InitiateBookingResponseDto response = bookingService.initiateBooking(requestDto);
 

@@ -13,17 +13,21 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "screens")
+@Table(name = "screens", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"name", "theatre_id"})
+})
 public class Screen {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String name;
 
     @ManyToOne
     @JoinColumn(name = "theatre_id" , nullable = false)
     private Theatre theatre;
 
+    @OneToMany(mappedBy = "screen", cascade = CascadeType.ALL)
+    private List<Seat> seats;
 }
