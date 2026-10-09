@@ -11,8 +11,6 @@ import java.util.List;
 @Setter
 public class InitiateBookingRequestDto {
     @NotNull
-    private Long userId;
-    @NotNull
     private Long showId;
     @NotEmpty(message = "You must select at least one seat")
     private List<Long> showSeatIds;

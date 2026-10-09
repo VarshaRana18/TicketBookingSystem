@@ -4,12 +4,15 @@ import com.example.ticket_booking_system.dto.InitiateBookingRequestDto;
 import com.example.ticket_booking_system.dto.InitiateBookingResponseDto;
 import com.example.ticket_booking_system.dto.ShowResponseDto;
 import com.example.ticket_booking_system.dto.ShowSeatResponseDto;
+import com.example.ticket_booking_system.entity.User;
 import com.example.ticket_booking_system.service.BookingService;
 import com.example.ticket_booking_system.service.ShowService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -37,8 +40,11 @@ public class BookingController {
 
     // 3. Initiate the booking (Lock the seats)
     @PostMapping("bookings/initiate")
-    public ResponseEntity<InitiateBookingResponseDto> initiateBooking(@Valid @RequestBody InitiateBookingRequestDto requestDto){
-        InitiateBookingResponseDto response = bookingService.initiateBooking(requestDto);
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<InitiateBookingResponseDto> initiateBooking(@Valid @RequestBody InitiateBookingRequestDto requestDto,
+                                                                      @AuthenticationPrincipal User currentUser){
+
+        InitiateBookingResponseDto response = bookingService.initiateBooking(requestDto, currentUser.getId());
 
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }

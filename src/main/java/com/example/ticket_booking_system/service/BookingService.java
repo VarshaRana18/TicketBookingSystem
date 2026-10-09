@@ -26,11 +26,12 @@ public class BookingService {
     private final BookingRepository bookingRepository;
 
     @Transactional
-    public InitiateBookingResponseDto initiateBooking(InitiateBookingRequestDto dto){
-        User user = userRepository.findById(dto.getUserId()).orElseThrow(()->new ResourceNotFoundException("User Not Found")
-        );
-        Show show = showRepository.findById(dto.getShowId()).orElseThrow(()->new ResourceNotFoundException("Show Not Found")
-        );
+    public InitiateBookingResponseDto initiateBooking(InitiateBookingRequestDto dto, Long userId){
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User Not Found"));
+
+        Show show = showRepository.findById(dto.getShowId())
+                .orElseThrow(() -> new ResourceNotFoundException("Show Not Found"));
 
         List<ShowSeat> selectedSeats = showSeatRepository.findByIdsForUpdate(dto.getShowSeatIds());
 
@@ -78,4 +79,5 @@ public class BookingService {
 
         return responseDto;
     }
+
 }
