@@ -80,4 +80,74 @@ public class BookingService {
         return responseDto;
     }
 
+
+    @Transactional
+    public String confirmPayment(Long bookingId, Long userId){
+        Booking booking = getAndValidateBooking(bookingId, userId);
+
+        // If the background sweeper already marked this as FAILED due to a 10-minute timeout, reject it.
+        if (booking.getPaymentStatus() != PaymentStatus.PENDING) {
+            throw new IllegalStateException("Booking is no longer pending. It may have expired.");
+        }
+
+        List<ShowSeat> seats = showSeatRepository.findByBookingId(bookingId);
+
+        if (seats.isEmpty()) {
+            booking.setPaymentStatus(PaymentStatus.FAILED);
+            bookingRepository.save(booking);
+            throw new IllegalStateException("Your session expired and the seats were released or booked by someone else.");
+        }
+
+        for (ShowSeat seat : seats) {
+            // Double-check the seat wasn't swept away by the background task
+            if (seat.getStatus() != SeatStatus.HELD) {
+                throw new IllegalStateException("Seat " + seat.getId() + " is no longer held.");
+            }
+
+            seat.setStatus(SeatStatus.BOOKED);
+            seat.setLockedAt(null); // Clear the temporary lock timer
+        }
+        booking.setPaymentStatus(PaymentStatus.SUCCESS);
+        bookingRepository.save(booking);
+        showSeatRepository.saveAll(seats);
+
+        return "Payment successful! Seats have been booked.";
+    }
+
+    @Transactional
+    public String cancelPayment(Long bookingId, Long userId){
+        Booking booking = getAndValidateBooking(bookingId, userId);
+
+        if (booking.getPaymentStatus() != PaymentStatus.PENDING) {
+            throw new IllegalStateException("Only pending bookings can be cancelled.");
+        }
+
+        // 1. Mark Booking as Failed/Cancelled
+        booking.setPaymentStatus(PaymentStatus.FAILED);
+        bookingRepository.save(booking);
+
+        // 2. Immediately Release the Seats for other users
+        List<ShowSeat> seats = showSeatRepository.findByBookingId(bookingId);
+        for (ShowSeat seat : seats) {
+            seat.setStatus(SeatStatus.AVAILABLE);
+            seat.setLockedAt(null);
+            seat.setBooking(null); // Unlink the foreign key so a new booking can claim this seat!
+        }
+
+        showSeatRepository.saveAll(seats);
+
+        return "Payment cancelled. Seats have been released.";
+    }
+
+    private Booking getAndValidateBooking(Long bookingId, Long userId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking not found"));
+
+        // Security Check: Prevent User A from confirming/cancelling User B's booking
+        if (!booking.getUser().getId().equals(userId)) {
+            throw new IllegalArgumentException("You do not have permission to modify this booking.");
+        }
+
+        return booking;
+    }
 }

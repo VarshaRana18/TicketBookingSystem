@@ -16,6 +16,8 @@ import java.util.List;
 @Repository
 public interface ShowSeatRepository extends JpaRepository<ShowSeat,Long> {
     List<ShowSeat> findByShowId(Long showId);
+    List<ShowSeat> findByBookingId(Long bookingId);
+    List<ShowSeat> findByStatusAndLockedAtBefore(SeatStatus status, LocalDateTime time);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM ShowSeat s WHERE s.id IN :seatIds")

@@ -49,4 +49,23 @@ public class BookingController {
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
+    @PostMapping("/bookings/{bookingId}/confirm")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<String> confirmBooking(
+            @PathVariable Long bookingId,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        String response = bookingService.confirmPayment(bookingId, currentUser.getId());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/bookings/{bookingId}/cancel")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<String> cancelBooking(
+            @PathVariable Long bookingId,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        String response = bookingService.cancelPayment(bookingId, currentUser.getId());
+        return ResponseEntity.ok(response);
+    }
 }
