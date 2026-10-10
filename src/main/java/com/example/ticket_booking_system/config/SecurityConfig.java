@@ -25,6 +25,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/v3/api-docs","/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // 1. Public endpoints (Filter passes Anonymous user, Bouncer lets them in)
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/movies/**").permitAll()
