@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.http.ProblemDetail;
 
 import java.time.LocalDateTime;
 
@@ -35,4 +36,5 @@ public class Show {
 
     @Column(nullable = false)
     private Double ticketPrice;
+
 }

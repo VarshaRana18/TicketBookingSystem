@@ -1,9 +1,6 @@
 package com.example.ticket_booking_system.controller;
 
-import com.example.ticket_booking_system.dto.InitiateBookingRequestDto;
-import com.example.ticket_booking_system.dto.InitiateBookingResponseDto;
-import com.example.ticket_booking_system.dto.ShowResponseDto;
-import com.example.ticket_booking_system.dto.ShowSeatResponseDto;
+import com.example.ticket_booking_system.dto.*;
 import com.example.ticket_booking_system.entity.User;
 import com.example.ticket_booking_system.service.BookingService;
 import com.example.ticket_booking_system.service.ShowService;
@@ -67,5 +64,14 @@ public class BookingController {
     ) {
         String response = bookingService.cancelPayment(bookingId, currentUser.getId());
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/bookings/history")
+    @PreAuthorize("hasRole('CUSTOMER')")
+    public ResponseEntity<List<BookingHistoryDto>> getBookingHistory(
+            @AuthenticationPrincipal User currentUser
+    ) {
+        List<BookingHistoryDto> history = bookingService.getUserBookingHistory(currentUser.getId());
+        return ResponseEntity.ok(history);
     }
 }

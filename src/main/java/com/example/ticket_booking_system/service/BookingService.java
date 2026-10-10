@@ -1,5 +1,6 @@
 package com.example.ticket_booking_system.service;
 
+import com.example.ticket_booking_system.dto.BookingHistoryDto;
 import com.example.ticket_booking_system.dto.InitiateBookingRequestDto;
 import com.example.ticket_booking_system.dto.InitiateBookingResponseDto;
 import com.example.ticket_booking_system.entity.*;
@@ -149,5 +150,34 @@ public class BookingService {
         }
 
         return booking;
+    }
+
+    public List<BookingHistoryDto> getUserBookingHistory(Long userId){
+        List<Booking> bookings = bookingRepository.findByUserIdOrderByBookingTimeDesc(userId);
+
+        return bookings.stream()
+                .map(this::mapToBookingHistoryDto)
+                .toList();
+    }
+
+    private BookingHistoryDto mapToBookingHistoryDto(Booking booking){
+        BookingHistoryDto dto = new BookingHistoryDto();
+
+        dto.setBookingId(booking.getId());
+        dto.setEventName(booking.getShow().getEvent().getTitle());
+        dto.setTheatreName(booking.getShow().getScreen().getTheatre().getName());
+        dto.setScreenName(booking.getShow().getScreen().getName());
+        dto.setShowTime(booking.getShow().getStartTime());
+        dto.setTotalAmount(booking.getTotalAmount());
+        dto.setPaymentStatus(booking.getPaymentStatus().name());
+        dto.setBookingTime(booking.getBookingTime());
+
+        List<ShowSeat> seats = showSeatRepository.findByBookingId(booking.getId());
+        List<String> seatNames = seats.stream()
+                .map(showSeat -> showSeat.getSeat().getSeatRow() + showSeat.getSeat().getSeatNumber())
+                .toList();
+
+        dto.setSeatNumbers(seatNames);
+        return dto;
     }
 }
