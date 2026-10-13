@@ -5,20 +5,26 @@ import com.example.ticket_booking_system.dto.ScreenResponseDto;
 import com.example.ticket_booking_system.dto.TheatreRequestDto;
 import com.example.ticket_booking_system.dto.TheatreResponseDto;
 import com.example.ticket_booking_system.entity.Screen;
+import com.example.ticket_booking_system.entity.Seat;
 import com.example.ticket_booking_system.entity.Theatre;
 import com.example.ticket_booking_system.entity.User;
 import com.example.ticket_booking_system.exception.ResourceNotFoundException;
 import com.example.ticket_booking_system.repository.ScreenRepository;
+import com.example.ticket_booking_system.repository.SeatRepository;
 import com.example.ticket_booking_system.repository.TheatreRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.security.access.AccessDeniedException;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class VenueManagerService{
     private final TheatreRepository theatreRepository;
     private final ScreenRepository screenRepository;
+    private final SeatRepository seatRepository;
 
     public TheatreResponseDto createTheatre(TheatreRequestDto dto, User currentManager) {
         Theatre theatre = new Theatre();
@@ -48,6 +54,31 @@ public class VenueManagerService{
         screen.setTheatre(theatre);
 
         Screen saved = screenRepository.save(screen);
+
+        List<Seat> seatsToSave = new ArrayList<>();
+
+        for (int i = 0; i < dto.getNumRows(); i++) {
+            char rowLetter = (char) ('A' + i);
+
+            // Loop through seat numbers (1, 2, 3...)
+            for (int j = 1; j <= dto.getSeatsPerRow(); j++) {
+                Seat seat = new Seat();
+                seat.setSeatRow(String.valueOf(rowLetter));
+                seat.setSeatNumber(j);
+                seat.setScreen(saved);
+
+                if (i >= dto.getNumRows() - 2) {
+                    seat.setCategory("PREMIUM");
+                } else {
+                    seat.setCategory("STANDARD");
+                }
+
+                seatsToSave.add(seat);
+            }
+        }
+
+        // Save all generated seats to the database
+        seatRepository.saveAll(seatsToSave);
 
         ScreenResponseDto res = new ScreenResponseDto();
         res.setId(saved.getId());

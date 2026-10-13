@@ -12,7 +12,10 @@ public class ScreenRequestDto {
     @NotBlank(message = "Screen name is required")
     private String name;
 
-    @NotNull(message = "Total seats capacity is required")
-    private Integer totalSeats;
+    @NotNull(message = "Number of rows is required")
+    private Integer numRows;
+
+    @NotNull(message = "Seats per row is required")
+    private Integer seatsPerRow;
 
 }
