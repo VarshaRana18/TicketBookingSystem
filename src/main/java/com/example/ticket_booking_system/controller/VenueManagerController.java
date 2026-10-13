@@ -1,9 +1,6 @@
 package com.example.ticket_booking_system.controller;
 
-import com.example.ticket_booking_system.dto.ScreenRequestDto;
-import com.example.ticket_booking_system.dto.ScreenResponseDto;
-import com.example.ticket_booking_system.dto.TheatreRequestDto;
-import com.example.ticket_booking_system.dto.TheatreResponseDto;
+import com.example.ticket_booking_system.dto.*;
 import com.example.ticket_booking_system.entity.Theatre;
 import com.example.ticket_booking_system.entity.User;
 import com.example.ticket_booking_system.service.VenueManagerService;
@@ -37,5 +34,10 @@ public class VenueManagerController {
             @AuthenticationPrincipal User currentUser
     ) {
         return new ResponseEntity<>(venueService.addScreenToTheatre(theatreId,requestDto,currentUser), HttpStatus.CREATED);
+    }
+
+    @PostMapping("/screens/{screenId}/shows")
+    public ResponseEntity<ShowResponseDto> scheduleShow(@PathVariable Long screenId, @Valid @RequestBody ShowRequestDto dto, @AuthenticationPrincipal User user){
+        return new ResponseEntity<>(venueService.scheduleShow(screenId,dto,user), HttpStatus.CREATED);
     }
 }

@@ -1,20 +1,13 @@
 package com.example.ticket_booking_system.service;
 
-import com.example.ticket_booking_system.dto.ScreenRequestDto;
-import com.example.ticket_booking_system.dto.ScreenResponseDto;
-import com.example.ticket_booking_system.dto.TheatreRequestDto;
-import com.example.ticket_booking_system.dto.TheatreResponseDto;
-import com.example.ticket_booking_system.entity.Screen;
-import com.example.ticket_booking_system.entity.Seat;
-import com.example.ticket_booking_system.entity.Theatre;
-import com.example.ticket_booking_system.entity.User;
+import com.example.ticket_booking_system.dto.*;
+import com.example.ticket_booking_system.entity.*;
 import com.example.ticket_booking_system.exception.ResourceNotFoundException;
-import com.example.ticket_booking_system.repository.ScreenRepository;
-import com.example.ticket_booking_system.repository.SeatRepository;
-import com.example.ticket_booking_system.repository.TheatreRepository;
+import com.example.ticket_booking_system.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +18,9 @@ public class VenueManagerService{
     private final TheatreRepository theatreRepository;
     private final ScreenRepository screenRepository;
     private final SeatRepository seatRepository;
+    private final EventRepository eventRepository;
+    private final ShowRepository showRepository;
+    private final ShowSeatRepository showSeatRepository;
 
     public TheatreResponseDto createTheatre(TheatreRequestDto dto, User currentManager) {
         Theatre theatre = new Theatre();
@@ -44,6 +40,7 @@ public class VenueManagerService{
         return response;
     }
 
+    @Transactional
     public ScreenResponseDto addScreenToTheatre(Long theatreId,ScreenRequestDto dto,User manager){
         Theatre theatre = theatreRepository.findById(theatreId).orElseThrow(() -> new ResourceNotFoundException("Theatre not found"));
         if(!theatre.getManager().getId().equals(manager.getId())){
@@ -52,7 +49,6 @@ public class VenueManagerService{
         Screen screen = new Screen();
         screen.setName(dto.getName());
         screen.setTheatre(theatre);
-
         Screen saved = screenRepository.save(screen);
 
         List<Seat> seatsToSave = new ArrayList<>();
@@ -85,6 +81,54 @@ public class VenueManagerService{
         res.setName(saved.getName());
         res.setTheatreId(saved.getTheatre().getId());
         res.setTheatreName(saved.getTheatre().getName());
+
+        return res;
+    }
+
+    @Transactional
+    public ShowResponseDto scheduleShow(Long screenId, ShowRequestDto dto, User manager){
+        Screen screen = screenRepository.findById(screenId).orElseThrow(()-> new ResourceNotFoundException("Screen not found"));
+        if(!screen.getTheatre().getManager().getId().equals(manager.getId())){
+            throw new AccessDeniedException("You do not own this screen");
+        }
+        Event event = eventRepository.findById(dto.getEventId()).orElseThrow(()-> new ResourceNotFoundException("Event not found"));
+
+        Show show = new Show();
+        show.setScreen(screen);
+        show.setEvent(event);
+        show.setStartTime(dto.getStartTime());
+        show.setEndTime(dto.getEndTime());
+        show.setTicketPrice(dto.getTicketPrice());
+
+        Show savedShow = showRepository.save(show);
+
+        List<Seat> physicalSeats = seatRepository.findByScreenId(screenId);
+        List<ShowSeat> showSeatsToSave = new ArrayList<>();
+
+        for(Seat physicalSeat : physicalSeats){
+            ShowSeat showSeat = new ShowSeat();
+            showSeat.setShow(savedShow);
+            showSeat.setSeat(physicalSeat);
+            showSeat.setStatus(SeatStatus.AVAILABLE);
+
+            if ("PREMIUM".equals(physicalSeat.getCategory())) {
+                showSeat.setPrice(dto.getTicketPrice() + 50.0); // Premium markup
+            } else {
+                showSeat.setPrice(dto.getTicketPrice());
+            }
+
+            showSeatsToSave.add(showSeat);
+        }
+
+        showSeatRepository.saveAll(showSeatsToSave);
+
+        ShowResponseDto res = new ShowResponseDto();
+        res.setShowId(savedShow.getId());
+        res.setMovieTitle(savedShow.getEvent().getTitle());
+        res.setPrice(savedShow.getTicketPrice());
+        res.setTheatreName(savedShow.getScreen().getTheatre().getName());
+        res.setScreenName(savedShow.getScreen().getName());
+        res.setStartTime(savedShow.getStartTime());
 
         return res;
     }
