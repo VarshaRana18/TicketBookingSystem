@@ -4,6 +4,7 @@ import com.example.ticket_booking_system.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,6 +14,7 @@ import java.util.List;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "app.seeder.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class DataSeeder implements CommandLineRunner {
     private final TheatreRepository theatreRepository;
@@ -37,10 +39,20 @@ public class DataSeeder implements CommandLineRunner {
         testUser.setEmail("customer@test.com");
         testUser.setPassword("password123");
         testUser.setRole(Role.CUSTOMER);
+
         userRepository.save(testUser);
 
-        Theatre bansal = new Theatre(null, "Bansal Cineplex", "Gotri Road", null);
-        Theatre inox = new Theatre(null, "Inox", "Race Course Circle", null);
+        User manager = new User();
+        manager.setName("Test Manager");
+        manager.setEmail("manager@test.com");
+        manager.setPassword("password123");
+        manager.setRole(Role.VENUE_MANAGER);
+
+        userRepository.save(manager);
+
+
+        Theatre bansal = new Theatre(null, "Bansal Cineplex", "Gotri Road", null,manager);
+        Theatre inox = new Theatre(null, "Inox", "Race Course Circle", null,manager);
         theatreRepository.saveAll(List.of(bansal, inox));
 
         Screen bansalS1 = new Screen(null, "S1", bansal, null);

@@ -27,4 +27,8 @@ public class Theatre {
 
     @OneToMany(mappedBy = "theatre" , cascade = CascadeType.ALL)
     private List<Screen> screens;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "manager_id", nullable = false)
+    private User manager;
 }
