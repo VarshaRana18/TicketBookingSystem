@@ -11,6 +11,7 @@ public class ShowResponseDto {
     private String theatreName;
     private String screenName;
     private LocalDateTime startTime;
+    private LocalDateTime endTime;
     private Double price;
 }
 
