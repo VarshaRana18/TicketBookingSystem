@@ -132,4 +132,34 @@ public class VenueManagerService{
 
         return res;
     }
+
+    public VenueDashboardResponseDto getManagerDashboard(User manager){
+        List<Theatre> managerTheatres = theatreRepository.findByManagerId(manager.getId());
+
+        double grandTotalRevenue = 0.0;
+        long grandTotalTickets = 0L;
+        List<TheatreStatsDto> theatreStatsList = new ArrayList<>();
+
+        for(Theatre theatre : managerTheatres){
+            Double theatreRevenue = showSeatRepository.calculateTotalRevenueByTheatreId(theatre.getId());
+            Long theatreTickets = showSeatRepository.countTicketsSoldByTheatreId(theatre.getId());
+
+            grandTotalRevenue += theatreRevenue;
+            grandTotalTickets += theatreTickets;
+
+            theatreStatsList.add(new TheatreStatsDto(
+                    theatre.getId(),
+                    theatre.getName(),
+                    theatreRevenue,
+                    theatreTickets
+            ));
+        }
+
+        VenueDashboardResponseDto dashboard = new VenueDashboardResponseDto();
+        dashboard.setTotalPlatformRevenue(grandTotalRevenue);
+        dashboard.setTotalTicketsSold(grandTotalTickets);
+        dashboard.setTheatreBreakdown(theatreStatsList);
+
+        return dashboard;
+    }
 }

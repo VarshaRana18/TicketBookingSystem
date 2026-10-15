@@ -40,4 +40,9 @@ public class VenueManagerController {
     public ResponseEntity<ShowResponseDto> scheduleShow(@PathVariable Long screenId, @Valid @RequestBody ShowRequestDto dto, @AuthenticationPrincipal User user){
         return new ResponseEntity<>(venueService.scheduleShow(screenId,dto,user), HttpStatus.CREATED);
     }
+
+    @GetMapping("/dashboard")
+    public ResponseEntity<VenueDashboardResponseDto> getDashboardStats(@AuthenticationPrincipal User currentUser){
+        return ResponseEntity.ok(venueService.getManagerDashboard(currentUser));
+    }
 }

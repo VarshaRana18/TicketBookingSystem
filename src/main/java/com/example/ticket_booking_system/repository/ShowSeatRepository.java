@@ -28,4 +28,10 @@ public interface ShowSeatRepository extends JpaRepository<ShowSeat,Long> {
     int releaseExpiredSeats(@Param("available") SeatStatus available,
                             @Param("held") SeatStatus held,
                             @Param("cutoffTime") LocalDateTime cutoffTime);
+
+    @Query("SELECT COALESCE(SUM(s.price),0.0) FROM ShowSeat s WHERE s.status='BOOKED' AND s.show.screen.theatre.id = :theatreId")
+    Double calculateTotalRevenueByTheatreId(@Param("theatreId") Long theatreId);
+
+    @Query("SELECT COUNT(s) FROM ShowSeat s WHERE s.status = 'BOOKED' AND s.show.screen.theatre.id = :theatreId")
+    Long countTicketsSoldByTheatreId(@Param("theatreId") Long theatreId);
 }
