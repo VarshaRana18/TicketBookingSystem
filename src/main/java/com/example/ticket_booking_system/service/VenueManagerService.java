@@ -17,10 +17,9 @@ import java.util.List;
 public class VenueManagerService{
     private final TheatreRepository theatreRepository;
     private final ScreenRepository screenRepository;
-    private final SeatRepository seatRepository;
     private final EventRepository eventRepository;
     private final ShowRepository showRepository;
-    private final ShowSeatRepository showSeatRepository;
+    private final TicketRepository ticketRepository;
 
     public TheatreResponseDto createTheatre(TheatreRequestDto dto, User currentManager) {
         Theatre theatre = new Theatre();
@@ -49,38 +48,17 @@ public class VenueManagerService{
         Screen screen = new Screen();
         screen.setName(dto.getName());
         screen.setTheatre(theatre);
+        screen.setNumRows(dto.getNumRows());
+        screen.setSeatsPerRow(dto.getSeatsPerRow());
         Screen saved = screenRepository.save(screen);
-
-        List<Seat> seatsToSave = new ArrayList<>();
-
-        for (int i = 0; i < dto.getNumRows(); i++) {
-            char rowLetter = (char) ('A' + i);
-
-            // Loop through seat numbers (1, 2, 3...)
-            for (int j = 1; j <= dto.getSeatsPerRow(); j++) {
-                Seat seat = new Seat();
-                seat.setSeatRow(String.valueOf(rowLetter));
-                seat.setSeatNumber(j);
-                seat.setScreen(saved);
-
-                if (i >= dto.getNumRows() - 2) {
-                    seat.setCategory("PREMIUM");
-                } else {
-                    seat.setCategory("STANDARD");
-                }
-
-                seatsToSave.add(seat);
-            }
-        }
-
-        // Save all generated seats to the database
-        seatRepository.saveAll(seatsToSave);
 
         ScreenResponseDto res = new ScreenResponseDto();
         res.setId(saved.getId());
         res.setName(saved.getName());
         res.setTheatreId(saved.getTheatre().getId());
         res.setTheatreName(saved.getTheatre().getName());
+        res.setNumRows(saved.getNumRows());
+        res.setSeatsPerRow(saved.getSeatsPerRow());
 
         return res;
     }
@@ -89,7 +67,7 @@ public class VenueManagerService{
     public ShowResponseDto scheduleShow(Long screenId, ShowRequestDto dto, User manager){
         Screen screen = screenRepository.findById(screenId).orElseThrow(()-> new ResourceNotFoundException("Screen not found"));
         if(!screen.getTheatre().getManager().getId().equals(manager.getId())){
-            throw new AccessDeniedException("You do not own this screen");
+            throw new AccessDeniedException("You do not have permission to manage this screen.");
         }
         Event event = eventRepository.findById(dto.getEventId()).orElseThrow(()-> new ResourceNotFoundException("Event not found"));
 
@@ -97,30 +75,9 @@ public class VenueManagerService{
         show.setScreen(screen);
         show.setEvent(event);
         show.setStartTime(dto.getStartTime());
-        show.setEndTime(dto.getEndTime());
         show.setTicketPrice(dto.getTicketPrice());
 
         Show savedShow = showRepository.save(show);
-
-        List<Seat> physicalSeats = seatRepository.findByScreenId(screenId);
-        List<ShowSeat> showSeatsToSave = new ArrayList<>();
-
-        for(Seat physicalSeat : physicalSeats){
-            ShowSeat showSeat = new ShowSeat();
-            showSeat.setShow(savedShow);
-            showSeat.setSeat(physicalSeat);
-            showSeat.setStatus(SeatStatus.AVAILABLE);
-
-            if ("PREMIUM".equals(physicalSeat.getCategory())) {
-                showSeat.setPrice(dto.getTicketPrice() + 50.0); // Premium markup
-            } else {
-                showSeat.setPrice(dto.getTicketPrice());
-            }
-
-            showSeatsToSave.add(showSeat);
-        }
-
-        showSeatRepository.saveAll(showSeatsToSave);
 
         ShowResponseDto res = new ShowResponseDto();
         res.setShowId(savedShow.getId());
@@ -141,8 +98,8 @@ public class VenueManagerService{
         List<TheatreStatsDto> theatreStatsList = new ArrayList<>();
 
         for(Theatre theatre : managerTheatres){
-            Double theatreRevenue = showSeatRepository.calculateTotalRevenueByTheatreId(theatre.getId());
-            Long theatreTickets = showSeatRepository.countTicketsSoldByTheatreId(theatre.getId());
+            Double theatreRevenue = ticketRepository.calculateTotalRevenueByTheatreId(theatre.getId());
+            Long theatreTickets = ticketRepository.countTicketsSoldByTheatreId(theatre.getId());
 
             grandTotalRevenue += theatreRevenue;
             grandTotalTickets += theatreTickets;

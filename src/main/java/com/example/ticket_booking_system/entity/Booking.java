@@ -37,7 +37,4 @@ public class Booking {
 
     @Column(nullable = false)
     private LocalDateTime bookingTime;
-
-    @OneToMany(mappedBy = "booking")
-    private List<ShowSeat> seatsBooked;
 }

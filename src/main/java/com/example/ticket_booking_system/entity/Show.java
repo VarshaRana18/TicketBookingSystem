@@ -32,9 +32,6 @@ public class Show {
     private LocalDateTime startTime;
 
     @Column(nullable = false)
-    private LocalDateTime endTime;
-
-    @Column(nullable = false)
     private Double ticketPrice;
 
 }

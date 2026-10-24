@@ -4,27 +4,27 @@ import com.example.ticket_booking_system.dto.EventResponseDto;
 import com.example.ticket_booking_system.dto.ShowResponseDto;
 import com.example.ticket_booking_system.dto.ShowSeatResponseDto;
 import com.example.ticket_booking_system.entity.Show;
-import com.example.ticket_booking_system.entity.ShowSeat;
+import com.example.ticket_booking_system.entity.Ticket;
 import com.example.ticket_booking_system.exception.ResourceNotFoundException;
 import com.example.ticket_booking_system.repository.EventRepository;
 import com.example.ticket_booking_system.repository.ShowRepository;
-import com.example.ticket_booking_system.repository.ShowSeatRepository;
+import com.example.ticket_booking_system.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class PublicDiscoveryService {
     private final EventRepository eventRepository;
     private final ShowRepository showRepository;
-    private final ShowSeatRepository showSeatRepository;
+    private final TicketRepository ticketRepository;
 
     public List<EventResponseDto> getAllEvents() {
         return eventRepository.findAll().stream().map(event -> {
@@ -47,29 +47,57 @@ public class PublicDiscoveryService {
             dto.setTheatreName(show.getScreen().getTheatre().getName());
             dto.setScreenName(show.getScreen().getName());
             dto.setStartTime(show.getStartTime());
-            dto.setEndTime(show.getEndTime());
             dto.setPrice(show.getTicketPrice());
             return dto;
         }).toList();
     }
 
     public List<ShowSeatResponseDto> getSeatMapForShow(Long showId) {
-        List<ShowSeat> seats = showSeatRepository.findByShowId(showId);
+        Show show = showRepository.findById(showId)
+                .orElseThrow(() -> new ResourceNotFoundException("Show not found."));
 
-        if (seats.isEmpty()) {
-            throw new ResourceNotFoundException("No seats found or show does not exist.");
+        int numRows = show.getScreen().getNumRows();
+        int seatsPerRow = show.getScreen().getSeatsPerRow();
+        Double basePrice = show.getTicketPrice();
+
+        List<Ticket> existingTickets = ticketRepository.findByShowId(showId);
+
+        Map<String, Ticket> ticketMap = existingTickets.stream()
+                .collect(Collectors.toMap(
+                        t -> t.getSeatRow() + "-" + t.getSeatNumber(),
+                        t -> t
+                ));
+
+        List<ShowSeatResponseDto> seatMap = new ArrayList<>();
+
+        for (int r = 1; r <= numRows; r++) {
+            // Converts 1 -> A, 2 -> B, 3 -> C...
+            String rowLetter = String.valueOf((char) ('A' + (r - 1)));
+
+            for (int s = 1; s <= seatsPerRow; s++) {
+                String coordinateKey = rowLetter + "-" + s;
+                Ticket ticket = ticketMap.get(coordinateKey);
+
+                ShowSeatResponseDto dto = new ShowSeatResponseDto();
+                dto.setSeatRow(rowLetter);
+                dto.setSeatNumber(s);
+                dto.setCategory("STANDARD");
+
+                if (ticket != null) {
+                    // Seat is taken: map the database values
+                    dto.setPrice(ticket.getPrice());
+                    dto.setStatus(ticket.getStatus().name());
+                } else {
+                    // Seat is empty: map the virtual available state
+                    dto.setPrice(basePrice);
+                    dto.setStatus("AVAILABLE");
+                }
+
+                seatMap.add(dto);
+            }
         }
 
-        return seats.stream().map(seat -> {
-            ShowSeatResponseDto dto = new ShowSeatResponseDto();
-            dto.setShowSeatId(seat.getId());
-            dto.setSeatRow(seat.getSeat().getSeatRow());
-            dto.setSeatNumber(seat.getSeat().getSeatNumber());
-            dto.setCategory(seat.getSeat().getCategory());
-            dto.setPrice(seat.getPrice());
-            dto.setStatus(seat.getStatus().name());
-            return dto;
-        }).toList();
+        return seatMap;
     }
 
     @Transactional(readOnly = true)
@@ -87,27 +115,6 @@ public class PublicDiscoveryService {
                     dto.setMovieTitle(show.getEvent().getTitle());
                     dto.setScreenName(show.getScreen().getName());
                     dto.setTheatreName(show.getScreen().getTheatre().getName());
-
-                    return dto;
-                })
-                .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public List<ShowSeatResponseDto> getSeatsForShow(Long showId) {
-        List<ShowSeat> showSeats = showSeatRepository.findByShowId(showId);
-
-        return showSeats.stream()
-                .map((showSeat)->{
-                    ShowSeatResponseDto dto = new ShowSeatResponseDto();
-                    dto.setShowSeatId(showSeat.getId());
-                    dto.setPrice(showSeat.getPrice());
-
-                    dto.setStatus(showSeat.getStatus().name());
-
-                    dto.setSeatRow(showSeat.getSeat().getSeatRow());
-                    dto.setSeatNumber(showSeat.getSeat().getSeatNumber());
-                    dto.setCategory(showSeat.getSeat().getCategory());
 
                     return dto;
                 })

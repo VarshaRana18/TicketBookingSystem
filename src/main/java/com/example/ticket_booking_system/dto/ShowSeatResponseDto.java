@@ -8,7 +8,6 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 public class ShowSeatResponseDto {
-    private Long showSeatId;
     private int seatNumber;
     private String seatRow;
     private String category;

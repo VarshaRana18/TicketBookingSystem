@@ -32,12 +32,12 @@ public class BookingController {
 
     @PostMapping("/bookings/{bookingId}/confirm")
     @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<String> confirmBooking(
+    public ResponseEntity<InitiateBookingResponseDto> confirmBooking(
             @PathVariable Long bookingId,
             @AuthenticationPrincipal User currentUser
     ) {
-        String response = bookingService.confirmPayment(bookingId, currentUser.getId());
-        return ResponseEntity.ok(response);
+        InitiateBookingResponseDto response = bookingService.confirmPayment(bookingId, currentUser.getId());
+        return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
     @PostMapping("/bookings/{bookingId}/cancel")

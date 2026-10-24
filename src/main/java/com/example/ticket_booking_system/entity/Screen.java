@@ -24,10 +24,13 @@ public class Screen {
     @Column(nullable = false)
     private String name;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "theatre_id" , nullable = false)
     private Theatre theatre;
 
-    @OneToMany(mappedBy = "screen", cascade = CascadeType.ALL)
-    private List<Seat> seats;
+    @Column(nullable = false)
+    private Integer numRows;
+
+    @Column(nullable = false)
+    private Integer seatsPerRow;
 }

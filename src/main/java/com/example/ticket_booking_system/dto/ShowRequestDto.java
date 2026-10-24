@@ -15,9 +15,6 @@ public class ShowRequestDto {
     @NotNull(message = "Start time is required")
     private LocalDateTime startTime;
 
-    @NotNull(message = "End time is required")
-    private LocalDateTime endTime;
-
     @NotNull(message = "Ticket price is required")
     private Double ticketPrice;
 }

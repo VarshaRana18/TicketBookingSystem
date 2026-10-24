@@ -3,25 +3,26 @@ package com.example.ticket_booking_system.service;
 import com.example.ticket_booking_system.dto.BookingHistoryDto;
 import com.example.ticket_booking_system.dto.InitiateBookingRequestDto;
 import com.example.ticket_booking_system.dto.InitiateBookingResponseDto;
+import com.example.ticket_booking_system.dto.SeatRequestDto;
 import com.example.ticket_booking_system.entity.*;
 import com.example.ticket_booking_system.exception.ResourceNotFoundException;
 import com.example.ticket_booking_system.repository.BookingRepository;
 import com.example.ticket_booking_system.repository.ShowRepository;
-import com.example.ticket_booking_system.repository.ShowSeatRepository;
 import com.example.ticket_booking_system.exception.ShowSeatNotAvailableException;
+import com.example.ticket_booking_system.repository.TicketRepository;
 import com.example.ticket_booking_system.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class BookingService {
-    private final ShowSeatRepository showSeatRepository;
+    private final TicketRepository ticketRepository;
     private final UserRepository userRepository;
     private final ShowRepository showRepository;
     private final BookingRepository bookingRepository;
@@ -34,56 +35,49 @@ public class BookingService {
         Show show = showRepository.findById(dto.getShowId())
                 .orElseThrow(() -> new ResourceNotFoundException("Show Not Found"));
 
-        List<ShowSeat> selectedSeats = showSeatRepository.findByIdsForUpdate(dto.getShowSeatIds());
-
-        if (selectedSeats.size() != dto.getShowSeatIds().size()) {
-            throw new IllegalArgumentException("One or more seats does not exist. ");
-        }
-
-        double totalAmount = 0.0;
-
-        for(ShowSeat seat: selectedSeats){
-            if (!seat.getShow().getId().equals(show.getId())) {
-                throw new IllegalArgumentException("Seat ID " + seat.getId() + " does not belong to this show.");
-            }
-            if(seat.getStatus() != SeatStatus.AVAILABLE){
-                throw new ShowSeatNotAvailableException("Seat ID " + seat.getSeat().getSeatRow() + seat.getSeat().getSeatNumber() + " is currently unavailable.");
-            }
-
-            totalAmount += seat.getPrice();
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-
         Booking booking = new Booking();
         booking.setUser(user);
         booking.setShow(show);
-        booking.setTotalAmount(totalAmount);
+        booking.setTotalAmount(0.0);
         booking.setPaymentStatus(PaymentStatus.PENDING);
-        booking.setBookingTime(now);
+        booking.setBookingTime(LocalDateTime.now());
 
         Booking savedBooking = bookingRepository.save(booking);
 
-        for(ShowSeat seat: selectedSeats){
-            seat.setStatus(SeatStatus.HELD);
-            seat.setLockedAt(now);
-            seat.setBooking(savedBooking);
+        List<Ticket> tickets = new ArrayList<>();
+        double totalAmount = 0.0;
+
+        for (SeatRequestDto seatReq : dto.getSeats()) {
+
+            Ticket ticket = new Ticket();
+            ticket.setShow(show);
+            ticket.setSeatRow(seatReq.getSeatRow());
+            ticket.setSeatNumber(seatReq.getSeatNumber());
+            ticket.setBooking(savedBooking);
+            ticket.setPrice(show.getTicketPrice());
+            ticket.setStatus(SeatStatus.HELD);
+            ticket.setLockedAt(LocalDateTime.now());
+
+            tickets.add(ticket);
+            totalAmount += ticket.getPrice();
+        }
+        savedBooking.setTotalAmount(totalAmount);
+        bookingRepository.save(savedBooking);
+
+        try {
+            ticketRepository.saveAll(tickets);
+            ticketRepository.flush();
+
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new ShowSeatNotAvailableException("One or more selected seats were just booked by someone else.");
         }
 
-        showSeatRepository.saveAll(selectedSeats);
-
-        InitiateBookingResponseDto responseDto = new InitiateBookingResponseDto();
-        responseDto.setBookingId(savedBooking.getId());
-        responseDto.setTotalAmount(totalAmount);
-        responseDto.setPaymentStatus(savedBooking.getPaymentStatus().name());
-        responseDto.setLockExpiresAt(now.plusMinutes(10));
-
-        return responseDto;
+        return mapToBookingResponseDto(booking, tickets);
     }
 
 
     @Transactional
-    public String confirmPayment(Long bookingId, Long userId){
+    public InitiateBookingResponseDto confirmPayment(Long bookingId, Long userId){
         Booking booking = getAndValidateBooking(bookingId, userId);
 
         // If the background sweeper already marked this as FAILED due to a 10-minute timeout, reject it.
@@ -91,28 +85,18 @@ public class BookingService {
             throw new IllegalStateException("Booking is no longer pending. It may have expired.");
         }
 
-        List<ShowSeat> seats = showSeatRepository.findByBookingId(bookingId);
-
-        if (seats.isEmpty()) {
-            booking.setPaymentStatus(PaymentStatus.FAILED);
-            bookingRepository.save(booking);
-            throw new IllegalStateException("Your session expired and the seats were released or booked by someone else.");
-        }
-
-        for (ShowSeat seat : seats) {
-            // Double-check the seat wasn't swept away by the background task
-            if (seat.getStatus() != SeatStatus.HELD) {
-                throw new IllegalStateException("Seat " + seat.getId() + " is no longer held.");
-            }
-
-            seat.setStatus(SeatStatus.BOOKED);
-            seat.setLockedAt(null); // Clear the temporary lock timer
-        }
         booking.setPaymentStatus(PaymentStatus.SUCCESS);
-        bookingRepository.save(booking);
-        showSeatRepository.saveAll(seats);
 
-        return "Payment successful! Seats have been booked.";
+        List<Ticket> tickets = ticketRepository.findByBookingId(bookingId);
+
+        for (Ticket ticket : tickets) {
+            ticket.setStatus(SeatStatus.BOOKED);
+            ticket.setLockedAt(null);
+        }
+
+        ticketRepository.saveAll(tickets);
+
+        return mapToBookingResponseDto(booking, tickets);
     }
 
     @Transactional
@@ -128,14 +112,9 @@ public class BookingService {
         bookingRepository.save(booking);
 
         // 2. Immediately Release the Seats for other users
-        List<ShowSeat> seats = showSeatRepository.findByBookingId(bookingId);
-        for (ShowSeat seat : seats) {
-            seat.setStatus(SeatStatus.AVAILABLE);
-            seat.setLockedAt(null);
-            seat.setBooking(null); // Unlink the foreign key so a new booking can claim this seat!
-        }
+        List<Ticket> tickets = ticketRepository.findByBookingId(bookingId);
 
-        showSeatRepository.saveAll(seats);
+        ticketRepository.deleteAll(tickets);
 
         return "Payment cancelled. Seats have been released.";
     }
@@ -164,20 +143,43 @@ public class BookingService {
         BookingHistoryDto dto = new BookingHistoryDto();
 
         dto.setBookingId(booking.getId());
-        dto.setEventName(booking.getShow().getEvent().getTitle());
-        dto.setTheatreName(booking.getShow().getScreen().getTheatre().getName());
-        dto.setScreenName(booking.getShow().getScreen().getName());
-        dto.setShowTime(booking.getShow().getStartTime());
         dto.setTotalAmount(booking.getTotalAmount());
         dto.setPaymentStatus(booking.getPaymentStatus().name());
         dto.setBookingTime(booking.getBookingTime());
 
-        List<ShowSeat> seats = showSeatRepository.findByBookingId(booking.getId());
-        List<String> seatNames = seats.stream()
-                .map(showSeat -> showSeat.getSeat().getSeatRow() + showSeat.getSeat().getSeatNumber())
-                .toList();
+        // 1. Fetch tickets using your new sparse repository
+        List<Ticket> tickets = ticketRepository.findByBookingId(booking.getId());
 
-        dto.setSeatNumbers(seatNames);
+        if (!tickets.isEmpty()) {
+            // 2. All tickets in a booking share the same show, so grab info from the first one
+            Show show = tickets.get(0).getShow();
+
+            dto.setEventName(show.getEvent().getTitle()); // Or getName(), depending on your Event entity
+            dto.setTheatreName(show.getScreen().getTheatre().getName());
+            dto.setScreenName(show.getScreen().getName());
+            dto.setShowTime(show.getStartTime());
+
+            // 3. Map the coordinates directly from the Ticket entity
+            List<String> seatNames = tickets.stream()
+                    .map(ticket -> ticket.getSeatRow() + ticket.getSeatNumber())
+                    .toList();
+
+            dto.setSeatNumbers(seatNames);
+        } else {
+            // Fallback for empty or completely cancelled/deleted bookings
+            dto.setSeatNumbers(new ArrayList<>());
+        }
+
+        return dto;
+    }
+
+    private InitiateBookingResponseDto mapToBookingResponseDto(Booking booking, List<Ticket> tickets) {
+        InitiateBookingResponseDto dto = new InitiateBookingResponseDto();
+        dto.setBookingId(booking.getId());
+        dto.setTotalAmount(booking.getTotalAmount());
+        dto.setPaymentStatus(booking.getPaymentStatus().name());
+        dto.setLockExpiresAt(booking.getBookingTime().plusMinutes(10));
+
         return dto;
     }
 }
