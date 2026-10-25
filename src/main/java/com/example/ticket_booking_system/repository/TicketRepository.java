@@ -18,6 +18,9 @@ public interface TicketRepository extends JpaRepository<Ticket,Long> {
     @Query("SELECT COUNT(t) FROM Ticket t WHERE t.status = 'BOOKED' AND t.show.screen.theatre.id = :theatreId")
     Long countTicketsSoldByTheatreId(@Param("theatreId") Long theatreId);
 
+    @Query("SELECT t FROM Ticket t WHERE t.status = 'HELD' AND t.booking.expiresAt < :now")
+    List<Ticket> findExpiredHeldTickets(@Param("now") LocalDateTime now);
+
     List<Ticket> findByStatusAndLockedAtBefore(SeatStatus seatStatus, LocalDateTime cutoffTime);
 
     List<Ticket> findByShowId(Long showId);

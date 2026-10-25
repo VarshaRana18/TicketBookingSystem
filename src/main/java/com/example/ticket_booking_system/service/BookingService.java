@@ -13,6 +13,7 @@ import com.example.ticket_booking_system.repository.TicketRepository;
 import com.example.ticket_booking_system.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -26,6 +27,8 @@ public class BookingService {
     private final UserRepository userRepository;
     private final ShowRepository showRepository;
     private final BookingRepository bookingRepository;
+    @Value("${hold_duration_minutes}")
+    private int HOLD_DURATION_MINUTES;
 
     @Transactional
     public InitiateBookingResponseDto initiateBooking(InitiateBookingRequestDto dto, Long userId){
@@ -41,6 +44,8 @@ public class BookingService {
         booking.setTotalAmount(0.0);
         booking.setPaymentStatus(PaymentStatus.PENDING);
         booking.setBookingTime(LocalDateTime.now());
+
+        booking.setExpiresAt(LocalDateTime.now().plusMinutes(HOLD_DURATION_MINUTES));
 
         Booking savedBooking = bookingRepository.save(booking);
 
@@ -83,6 +88,10 @@ public class BookingService {
         // If the background sweeper already marked this as FAILED due to a 10-minute timeout, reject it.
         if (booking.getPaymentStatus() != PaymentStatus.PENDING) {
             throw new IllegalStateException("Booking is no longer pending. It may have expired.");
+        }
+
+        if (booking.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalStateException("Your 10-minute hold has expired. Please initiate a new booking.");
         }
 
         booking.setPaymentStatus(PaymentStatus.SUCCESS);
@@ -178,7 +187,7 @@ public class BookingService {
         dto.setBookingId(booking.getId());
         dto.setTotalAmount(booking.getTotalAmount());
         dto.setPaymentStatus(booking.getPaymentStatus().name());
-        dto.setLockExpiresAt(booking.getBookingTime().plusMinutes(10));
+        dto.setLockExpiresAt(booking.getExpiresAt());
 
         return dto;
     }

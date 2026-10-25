@@ -37,4 +37,7 @@ public class Booking {
 
     @Column(nullable = false)
     private LocalDateTime bookingTime;
+
+    @Column(nullable = false)
+    private LocalDateTime expiresAt;
 }

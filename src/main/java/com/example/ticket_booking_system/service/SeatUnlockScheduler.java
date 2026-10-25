@@ -25,9 +25,7 @@ public class SeatUnlockScheduler {
     @Scheduled(fixedRate = 60000) //Runs Every 60,000 milliseconds (1 minute)
     @Transactional
     public void unlockExpiredSeats() {
-        LocalDateTime cutoffTime = LocalDateTime.now().minusMinutes(10);
-
-        List<Ticket> expiredTickets = ticketRepository.findByStatusAndLockedAtBefore(SeatStatus.HELD, cutoffTime);
+        List<Ticket> expiredTickets = ticketRepository.findExpiredHeldTickets(LocalDateTime.now());
 
         if (expiredTickets.isEmpty()) {
             return;
