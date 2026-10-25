@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -12,4 +13,5 @@ public class InitiateBookingResponseDto {
     private Double totalAmount;
     private String paymentStatus;
     private LocalDateTime lockExpiresAt;
+    private List<String> seatNumbers;
 }

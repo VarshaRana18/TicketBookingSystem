@@ -10,10 +10,14 @@ import java.time.LocalDateTime;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@Table(name="tickets",uniqueConstraints = {
-        // MySQL will physically block double-bookings.
-        @UniqueConstraint(columnNames = {"show_id", "seat_id"})
-})
+@Table(name = "tickets",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_ticket_show_seat", columnNames = {"show_id", "seat_row", "seat_number"})
+        },
+        indexes = {
+                @Index(name = "idx_ticket_status_locked", columnList = "status, locked_at")
+        }
+)
 public class Ticket {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

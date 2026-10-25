@@ -42,11 +42,11 @@ public class BookingController {
 
     @PostMapping("/bookings/{bookingId}/cancel")
     @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<String> cancelBooking(
+    public ResponseEntity<BookingCancellationResponseDto> cancelBooking(
             @PathVariable Long bookingId,
             @AuthenticationPrincipal User currentUser
     ) {
-        String response = bookingService.cancelPayment(bookingId, currentUser.getId());
+        BookingCancellationResponseDto response = bookingService.cancelPayment(bookingId, currentUser.getId());
         return ResponseEntity.ok(response);
     }
 

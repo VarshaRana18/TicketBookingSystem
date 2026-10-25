@@ -14,17 +14,19 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name="bookings")
+@Table(name="bookings",indexes = {
+        @Index(name = "idx_booking_user_id", columnList = "user_id")
+})
 public class Booking {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name="user_id",nullable = false)
     private User user;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name="show_id",nullable = false)
     private Show show;
 
@@ -40,4 +42,7 @@ public class Booking {
 
     @Column(nullable = false)
     private LocalDateTime expiresAt;
+
+    @Version
+    private Long version;
 }
