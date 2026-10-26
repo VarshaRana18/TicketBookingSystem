@@ -1,9 +1,5 @@
 package com.example.ticket_booking_system.service;
 
-import com.example.ticket_booking_system.entity.Booking;
-import com.example.ticket_booking_system.entity.PaymentStatus;
-import com.example.ticket_booking_system.entity.SeatStatus;
-import com.example.ticket_booking_system.entity.Ticket;
 import com.example.ticket_booking_system.repository.BookingRepository;
 import com.example.ticket_booking_system.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,8 +8,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Slf4j
 @Service
@@ -21,30 +17,18 @@ import java.util.List;
 public class SeatUnlockScheduler {
     private final TicketRepository ticketRepository;
     private final BookingRepository bookingRepository;
+    private final Clock clock;
 
-    @Scheduled(fixedRate = 60000) //Runs Every 60,000 milliseconds (1 minute)
+    @Scheduled(fixedDelay = 60000) //Changing fixedRate to fixedDelay ensures the next 60-second countdown doesn't start until the current execution finishes, preventing overlapping sweeps.
     @Transactional
     public void unlockExpiredSeats() {
-        List<Ticket> expiredTickets = ticketRepository.findExpiredHeldTickets(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now(clock);
 
-        if (expiredTickets.isEmpty()) {
-            return;
+        int failedBookings = bookingRepository.failExpiredBookings(now);
+        int releasedTickets = ticketRepository.deleteTicketsForFailedBookings();
+
+        if (failedBookings > 0 || releasedTickets > 0) {
+            log.info("Sweeper: Failed {} expired bookings and released {} held tickets.", failedBookings, releasedTickets);
         }
-        int failedBookings = 0;
-
-        for (Ticket ticket : expiredTickets) {
-            Booking booking = ticket.getBooking();
-            if (booking != null && booking.getPaymentStatus() == PaymentStatus.PENDING) {
-                booking.setPaymentStatus(PaymentStatus.FAILED);
-                bookingRepository.save(booking);
-                failedBookings++;
-            }
-        }
-
-        ticketRepository.deleteAll(expiredTickets);
-
-        log.info("Deleted {} expired tickets and automatically failed {} pending bookings.",
-                expiredTickets.size(), failedBookings);
-
     }
 }

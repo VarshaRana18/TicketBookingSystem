@@ -26,18 +26,18 @@ public class BookingService {
     private final ShowRepository showRepository;
     private final BookingRepository bookingRepository;
     private final Clock clock;
-    @Value("${hold_duration_minutes}")
-    private int HOLD_DURATION_MINUTES;
-    @Value("${max_seats_per_booking}")
-    private int MAX_SEATS_PER_BOOKING;
+    @Value("${booking.hold-duration-minutes}")
+    private int HoldDurationMinutes;
+    @Value("${booking.max-seats-per-booking}")
+    private int MaxSeatsPerBooking;
 
     @Transactional
     public InitiateBookingResponseDto initiateBooking(InitiateBookingRequestDto dto, Long userId){
         if (dto.getSeats() == null || dto.getSeats().isEmpty()) {
             throw new IllegalArgumentException("You must select at least one seat.");
         }
-        if (dto.getSeats().size() > MAX_SEATS_PER_BOOKING) {
-            throw new IllegalArgumentException("You cannot book more than " + MAX_SEATS_PER_BOOKING + " seats at a time.");
+        if (dto.getSeats().size() > MaxSeatsPerBooking) {
+            throw new IllegalArgumentException("You cannot book more than " + MaxSeatsPerBooking + " seats at a time.");
         }
 
         long uniqueSeats = dto.getSeats().stream()
@@ -65,7 +65,7 @@ public class BookingService {
         booking.setPaymentStatus(PaymentStatus.PENDING);
         booking.setBookingTime(LocalDateTime.now(clock));
 
-        booking.setExpiresAt(LocalDateTime.now(clock).plusMinutes(HOLD_DURATION_MINUTES));
+        booking.setExpiresAt(LocalDateTime.now(clock).plusMinutes(HoldDurationMinutes));
 
         Booking savedBooking = bookingRepository.save(booking);
 
@@ -112,17 +112,13 @@ public class BookingService {
     @Transactional
     public InitiateBookingResponseDto confirmPayment(Long bookingId, Long userId){
         Booking booking = getAndValidateBooking(bookingId, userId);
+        LocalDateTime now = LocalDateTime.now(clock);
 
-        // If the background sweeper already marked this as FAILED due to a 10-minute timeout, reject it.
-        if (booking.getPaymentStatus() != PaymentStatus.PENDING) {
-            throw new IllegalStateException("Booking is no longer pending. It may have expired.");
+        int updatedRows = bookingRepository.confirmIfStillValid(bookingId, now);
+
+        if (updatedRows == 0) {
+            throw new IllegalStateException("Your 10-minute hold has expired or this booking was already processed.");
         }
-
-        if (booking.getExpiresAt().isBefore(LocalDateTime.now(clock))) {
-            throw new IllegalStateException("Your 10-minute hold has expired. Please initiate a new booking.");
-        }
-
-        booking.setPaymentStatus(PaymentStatus.SUCCESS);
 
         List<Ticket> tickets = ticketRepository.findByBookingId(bookingId);
 
@@ -132,6 +128,8 @@ public class BookingService {
         }
 
         ticketRepository.saveAll(tickets);
+        ticketRepository.flush();
+        booking.setPaymentStatus(PaymentStatus.SUCCESS);
 
         return mapToBookingResponseDto(booking, tickets);
     }
@@ -140,18 +138,14 @@ public class BookingService {
     public BookingCancellationResponseDto cancelPayment(Long bookingId, Long userId){
         Booking booking = getAndValidateBooking(bookingId, userId);
 
-        if (booking.getPaymentStatus() != PaymentStatus.PENDING) {
-            throw new IllegalStateException("Only pending bookings can be cancelled.");
+        int updatedRows = bookingRepository.cancelIfStillPending(bookingId);
+
+        if (updatedRows == 0) {
+            // The database blocked the cancellation because it is no longer PENDING
+            throw new IllegalStateException("Only pending bookings can be cancelled. This booking may have already been processed.");
         }
 
-        // 1. Mark Booking as Failed/Cancelled
-        booking.setPaymentStatus(PaymentStatus.FAILED);
-        bookingRepository.save(booking);
-
-        // 2. Immediately Release the Seats for other users
-        List<Ticket> tickets = ticketRepository.findByBookingId(bookingId);
-
-        ticketRepository.deleteAll(tickets);
+        ticketRepository.deleteByBookingId(bookingId);
 
         BookingCancellationResponseDto response = new BookingCancellationResponseDto();
         response.setBookingId(booking.getId());
