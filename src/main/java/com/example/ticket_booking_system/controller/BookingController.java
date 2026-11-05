@@ -53,9 +53,11 @@ public class BookingController {
     @GetMapping("/bookings/history")
     @PreAuthorize("hasRole('CUSTOMER')")
     public ResponseEntity<List<BookingHistoryDto>> getBookingHistory(
-            @AuthenticationPrincipal User currentUser
+            @AuthenticationPrincipal User currentUser,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        List<BookingHistoryDto> history = bookingService.getUserBookingHistory(currentUser.getId());
+        List<BookingHistoryDto> history = bookingService.getUserBookingHistory(currentUser.getId(),page,size);
         return ResponseEntity.ok(history);
     }
 }

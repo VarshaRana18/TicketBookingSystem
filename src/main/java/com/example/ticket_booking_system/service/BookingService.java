@@ -8,6 +8,8 @@ import com.example.ticket_booking_system.repository.ShowRepository;
 import com.example.ticket_booking_system.exception.ShowSeatNotAvailableException;
 import com.example.ticket_booking_system.repository.TicketRepository;
 import com.example.ticket_booking_system.repository.UserRepository;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,6 +19,8 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -120,16 +124,12 @@ public class BookingService {
             throw new IllegalStateException("Your 10-minute hold has expired or this booking was already processed.");
         }
 
-        List<Ticket> tickets = ticketRepository.findByBookingId(bookingId);
+        ticketRepository.updateStatusByBookingId(bookingId,SeatStatus.BOOKED);
 
-        for (Ticket ticket : tickets) {
-            ticket.setStatus(SeatStatus.BOOKED);
-            ticket.setLockedAt(null);
-        }
+        List<Ticket> tickets = ticketRepository.findByBookingId(bookingId);
 
         ticketRepository.saveAll(tickets);
         ticketRepository.flush();
-        booking.setPaymentStatus(PaymentStatus.SUCCESS);
 
         return mapToBookingResponseDto(booking, tickets);
     }
@@ -167,45 +167,38 @@ public class BookingService {
         return booking;
     }
 
-    public List<BookingHistoryDto> getUserBookingHistory(Long userId){
-        List<Booking> bookings = bookingRepository.findByUserIdOrderByBookingTimeDesc(userId);
+    @Transactional(readOnly = true)
+    public List<BookingHistoryDto> getUserBookingHistory(Long userId, int page, int size){
+        Pageable pageable = PageRequest.of(page, Math.min(size, 50));
+
+        List<Booking> bookings = bookingRepository.findHistory(userId, pageable);
+        if (bookings.isEmpty()) return List.of();
+
+        List<Long> ids = bookings.stream().map(Booking::getId).toList();
+        Map<Long, List<Ticket>> ticketsByBooking = ticketRepository.findByBookingIdIn(ids)
+                .stream()
+                .collect(Collectors.groupingBy(t -> t.getBooking().getId()));
 
         return bookings.stream()
-                .map(this::mapToBookingHistoryDto)
+                .map(b -> mapToBookingHistoryDto(b, ticketsByBooking.getOrDefault(b.getId(), List.of())))
                 .toList();
     }
 
-    private BookingHistoryDto mapToBookingHistoryDto(Booking booking){
-        BookingHistoryDto dto = new BookingHistoryDto();
+    private BookingHistoryDto mapToBookingHistoryDto(Booking booking, List<Ticket> tickets) {
+        Show show = booking.getShow();
 
+        BookingHistoryDto dto = new BookingHistoryDto();
         dto.setBookingId(booking.getId());
         dto.setTotalAmount(booking.getTotalAmount());
         dto.setPaymentStatus(booking.getPaymentStatus().name());
         dto.setBookingTime(booking.getBookingTime());
-
-        // 1. Fetch tickets using your new sparse repository
-        List<Ticket> tickets = ticketRepository.findByBookingId(booking.getId());
-
-        if (!tickets.isEmpty()) {
-            // 2. All tickets in a booking share the same show, so grab info from the first one
-            Show show = tickets.get(0).getShow();
-
-            dto.setEventName(show.getEvent().getTitle()); // Or getName(), depending on your Event entity
-            dto.setTheatreName(show.getScreen().getTheatre().getName());
-            dto.setScreenName(show.getScreen().getName());
-            dto.setShowTime(show.getStartTime());
-
-            // 3. Map the coordinates directly from the Ticket entity
-            List<String> seatNames = tickets.stream()
-                    .map(ticket -> ticket.getSeatRow() + ticket.getSeatNumber())
-                    .toList();
-
-            dto.setSeatNumbers(seatNames);
-        } else {
-            // Fallback for empty or completely cancelled/deleted bookings
-            dto.setSeatNumbers(new ArrayList<>());
-        }
-
+        dto.setEventName(show.getEvent().getTitle());
+        dto.setTheatreName(show.getScreen().getTheatre().getName());
+        dto.setScreenName(show.getScreen().getName());
+        dto.setShowTime(show.getStartTime());
+        dto.setSeatNumbers(tickets.stream()
+                .map(t -> t.getSeatRow() + t.getSeatNumber())
+                .toList());
         return dto;
     }
 

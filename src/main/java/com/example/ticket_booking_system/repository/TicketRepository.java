@@ -27,9 +27,16 @@ public interface TicketRepository extends JpaRepository<Ticket,Long> {
     @Query("DELETE FROM Ticket t WHERE t.status = 'HELD' AND t.booking.id IN (SELECT b.id FROM Booking b WHERE b.paymentStatus = 'FAILED')")
     int deleteTicketsForFailedBookings();
 
+    @Modifying
+    @Query("UPDATE Ticket t SET t.status = :status, t.lockedAt = null WHERE t.booking.id = :bookingId")
+    int updateStatusByBookingId(@Param("bookingId") Long bookingId,
+                                @Param("status") SeatStatus status);
+
     List<Ticket> findByStatusAndLockedAtBefore(SeatStatus seatStatus, LocalDateTime cutoffTime);
 
     List<Ticket> findByShowId(Long showId);
 
     List<Ticket> findByBookingId(Long bookingId);
+
+    List<Ticket> findByBookingIdIn(List<Long> bookingIds);
 }
