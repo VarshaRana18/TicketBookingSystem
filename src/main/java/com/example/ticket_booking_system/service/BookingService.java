@@ -109,7 +109,7 @@ public class BookingService {
             throw new ShowSeatNotAvailableException("One or more selected seats were just booked by someone else.");
         }
 
-        return mapToBookingResponseDto(booking, tickets);
+        return mapToBookingResponseDto(booking, tickets, PaymentStatus.PENDING);
     }
 
 
@@ -131,7 +131,7 @@ public class BookingService {
         ticketRepository.saveAll(tickets);
         ticketRepository.flush();
 
-        return mapToBookingResponseDto(booking, tickets);
+        return mapToBookingResponseDto(booking, tickets,PaymentStatus.SUCCESS);
     }
 
     @Transactional
@@ -149,9 +149,8 @@ public class BookingService {
 
         BookingCancellationResponseDto response = new BookingCancellationResponseDto();
         response.setBookingId(booking.getId());
-        response.setPaymentStatus(booking.getPaymentStatus().name());
+        response.setPaymentStatus(PaymentStatus.FAILED.name());
         response.setMessage("Payment cancelled. Seats have been released.");
-
         return response;
     }
 
@@ -202,11 +201,11 @@ public class BookingService {
         return dto;
     }
 
-    private InitiateBookingResponseDto mapToBookingResponseDto(Booking booking, List<Ticket> tickets) {
+    private InitiateBookingResponseDto mapToBookingResponseDto(Booking booking, List<Ticket> tickets,PaymentStatus status) {
         InitiateBookingResponseDto dto = new InitiateBookingResponseDto();
         dto.setBookingId(booking.getId());
         dto.setTotalAmount(booking.getTotalAmount());
-        dto.setPaymentStatus(booking.getPaymentStatus().name());
+        dto.setPaymentStatus(status.name());
         dto.setLockExpiresAt(booking.getExpiresAt());
 
         List<String> seatNames = tickets.stream()

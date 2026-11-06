@@ -10,6 +10,7 @@ import com.example.ticket_booking_system.repository.EventRepository;
 import com.example.ticket_booking_system.repository.ShowRepository;
 import com.example.ticket_booking_system.repository.TicketRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,6 +53,7 @@ public class PublicDiscoveryService {
         }).toList();
     }
 
+    @Cacheable(cacheNames = "seatmap", key = "#showId", sync = true)
     public List<ShowSeatResponseDto> getSeatMapForShow(Long showId) {
         Show show = showRepository.findById(showId)
                 .orElseThrow(() -> new ResourceNotFoundException("Show not found."));

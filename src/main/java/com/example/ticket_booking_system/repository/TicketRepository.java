@@ -32,6 +32,7 @@ public interface TicketRepository extends JpaRepository<Ticket,Long> {
     int updateStatusByBookingId(@Param("bookingId") Long bookingId,
                                 @Param("status") SeatStatus status);
 
+
     List<Ticket> findByStatusAndLockedAtBefore(SeatStatus seatStatus, LocalDateTime cutoffTime);
 
     List<Ticket> findByShowId(Long showId);
