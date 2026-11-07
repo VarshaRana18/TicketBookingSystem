@@ -29,6 +29,8 @@ public class BookingService {
     private final UserRepository userRepository;
     private final ShowRepository showRepository;
     private final BookingRepository bookingRepository;
+    private final SeatMapCacheEvictor seatMapCacheEvictor;
+
     private final Clock clock;
     @Value("${booking.hold-duration-minutes}")
     private int HoldDurationMinutes;
@@ -109,6 +111,8 @@ public class BookingService {
             throw new ShowSeatNotAvailableException("One or more selected seats were just booked by someone else.");
         }
 
+        seatMapCacheEvictor.evictAfterCommit(List.of(show.getId()));
+
         return mapToBookingResponseDto(booking, tickets, PaymentStatus.PENDING);
     }
 
@@ -126,10 +130,12 @@ public class BookingService {
 
         ticketRepository.updateStatusByBookingId(bookingId,SeatStatus.BOOKED);
 
+        seatMapCacheEvictor.evictAfterCommit(List.of(booking.getShow().getId()));
+
         List<Ticket> tickets = ticketRepository.findByBookingId(bookingId);
 
-        ticketRepository.saveAll(tickets);
-        ticketRepository.flush();
+//        ticketRepository.saveAll(tickets);
+//        ticketRepository.flush();
 
         return mapToBookingResponseDto(booking, tickets,PaymentStatus.SUCCESS);
     }
@@ -146,6 +152,7 @@ public class BookingService {
         }
 
         ticketRepository.deleteByBookingId(bookingId);
+        seatMapCacheEvictor.evictAfterCommit(List.of(booking.getShow().getId()));
 
         BookingCancellationResponseDto response = new BookingCancellationResponseDto();
         response.setBookingId(booking.getId());

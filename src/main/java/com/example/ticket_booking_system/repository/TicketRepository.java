@@ -1,5 +1,6 @@
 package com.example.ticket_booking_system.repository;
 
+import com.example.ticket_booking_system.entity.PaymentStatus;
 import com.example.ticket_booking_system.entity.SeatStatus;
 import com.example.ticket_booking_system.entity.Ticket;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,6 +14,12 @@ import java.util.List;
 
 @Repository
 public interface TicketRepository extends JpaRepository<Ticket,Long> {
+
+    @Query("SELECT DISTINCT t.show.id FROM Ticket t " +
+            "WHERE t.status = :ticketStatus AND t.booking.paymentStatus = :paymentStatus")
+    List<Long> findShowIdsOfFailedBookings(@Param("ticketStatus") SeatStatus ticketStatus,
+                                           @Param("paymentStatus") PaymentStatus paymentStatus);
+
     @Query("SELECT COALESCE(SUM(t.price), 0.0) FROM Ticket t WHERE t.status = 'BOOKED' AND t.show.screen.theatre.id = :theatreId")
     Double calculateTotalRevenueByTheatreId(@Param("theatreId") Long theatreId);
 
@@ -24,8 +31,10 @@ public interface TicketRepository extends JpaRepository<Ticket,Long> {
     int deleteByBookingId(@Param("bookingId") Long bookingId);
 
     @Modifying
-    @Query("DELETE FROM Ticket t WHERE t.status = 'HELD' AND t.booking.id IN (SELECT b.id FROM Booking b WHERE b.paymentStatus = 'FAILED')")
-    int deleteTicketsForFailedBookings();
+    @Query("DELETE FROM Ticket t WHERE t.status = :ticketStatus AND t.booking.id IN " +
+            "(SELECT b.id FROM Booking b WHERE b.paymentStatus = :paymentStatus)")
+    int deleteTicketsForFailedBookings(@Param("ticketStatus") SeatStatus ticketStatus,
+                                       @Param("paymentStatus") PaymentStatus paymentStatus);
 
     @Modifying
     @Query("UPDATE Ticket t SET t.status = :status, t.lockedAt = null WHERE t.booking.id = :bookingId")
