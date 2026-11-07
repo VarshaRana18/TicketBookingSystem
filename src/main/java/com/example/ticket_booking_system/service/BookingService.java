@@ -2,6 +2,7 @@ package com.example.ticket_booking_system.service;
 
 import com.example.ticket_booking_system.dto.*;
 import com.example.ticket_booking_system.entity.*;
+import com.example.ticket_booking_system.exception.BookingContentionException;
 import com.example.ticket_booking_system.exception.ResourceNotFoundException;
 import com.example.ticket_booking_system.repository.BookingRepository;
 import com.example.ticket_booking_system.repository.ShowRepository;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -81,7 +83,13 @@ public class BookingService {
         int maxRows = show.getScreen().getNumRows();
         int maxSeatsPerRow = show.getScreen().getSeatsPerRow();
 
-        for (SeatRequestDto seatReq : dto.getSeats()) {
+        List<SeatRequestDto> orderedSeats = dto.getSeats().stream()
+                .sorted(Comparator
+                        .comparing((SeatRequestDto s) -> s.getSeatRow().trim().toUpperCase())
+                        .thenComparing(SeatRequestDto::getSeatNumber))
+                .toList();
+
+        for (SeatRequestDto seatReq : orderedSeats) {
             int rowIndex = seatReq.getSeatRow().toUpperCase().charAt(0) - 'A' + 1;
 
             if (rowIndex < 1 || rowIndex > maxRows || seatReq.getSeatNumber() < 1 || seatReq.getSeatNumber() > maxSeatsPerRow) {
@@ -167,7 +175,8 @@ public class BookingService {
 
         // Security Check: Prevent User A from confirming/cancelling User B's booking
         if (!booking.getUser().getId().equals(userId)) {
-            throw new IllegalArgumentException("You do not have permission to modify this booking.");
+            throw new org.springframework.security.access.AccessDeniedException(
+                    "You do not have permission to modify this booking.");
         }
 
         return booking;

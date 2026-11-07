@@ -16,7 +16,7 @@ public class CacheConfig {
     @Bean
     public RedisCacheManager cacheManager(RedisConnectionFactory connectionFactory) {
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofMinutes(5))
+                .entryTtl(Duration.ofSeconds(10))
                 .disableCachingNullValues();
 
         return RedisCacheManager.builder(connectionFactory)
