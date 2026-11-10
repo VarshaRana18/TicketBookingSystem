@@ -24,9 +24,9 @@ Swagger UI: `http://localhost:8080/swagger-ui/index.html`
 | GET | `/api/public/events/{eventId}/shows` | Upcoming shows for an event |
 | GET | `/api/public/shows/{showId}/seats` | Seat map for a show (cached) |
 | POST | `/api/bookings/initiate` | Hold seats for a booking |
-| <<METHOD>> | <<confirm path>> | Confirm payment |
-| <<METHOD>> | <<cancel path>> | Cancel a pending booking |
-| GET | <<history path>> | Booking history |
+| POST | `/api/bookings/{id}/confirm` | Confirm payment |
+| POST | `/api/bookings/{id}/cancel` | Cancel a pending booking |
+| GET | `/api/bookings/history` | Booking history |
 
 ## Data model
 ```mermaid
@@ -58,6 +58,7 @@ erDiagram
 Concurrency tests run against a separate MySQL test database.
 - **Same-seat race:** 20 threads book one seat; exactly 1 succeeds. With the unique constraint removed, all 20 succeeded, so the test detects double booking.
 - **Opposite-order deadlock test:** the same two seats booked in opposite order deadlocked in 25 of 25 rounds before the fix, and passes in 5 × 25 rounds after it.
+- **Time-Travel Sweeper Test:** Verified automated background expiration logic using Mockito clock injections.
 
 ## Performance
 Measured with k6 on a single laptop (app, MySQL and k6 on one machine), so absolute numbers are indicative only.
@@ -75,8 +76,7 @@ Measured with k6 on a single laptop (app, MySQL and k6 on one machine), so absol
 1. Install Java 17+, MySQL, and have a Redis instance available (local or cloud).
 2. Set environment variables: `DB_USERNAME`,`DB_PASSWORD`, `JWT_SECERT_KEY`, `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`.
 3. Run `./mvnw spring-boot:run`, then open the Swagger UI.
-4. Run tests with `./mvnw test` <<the concurrency tests use a `test` profile with its own database; see `application-test.properties`>>.
-
+4. Run tests with `./mvnw test`. 
 ## Known limitations and future work
 - Payment is simulated; a real gateway would confirm via a signed, idempotent webhook.
 - Money uses `Double`; should move to `BigDecimal`.
