@@ -2,6 +2,7 @@ package com.example.ticket_booking_system.service;
 
 import com.example.ticket_booking_system.dto.CreateUserRequestDto;
 import com.example.ticket_booking_system.dto.CreateUserResponseDto;
+import com.example.ticket_booking_system.entity.Role;
 import com.example.ticket_booking_system.entity.User;
 import com.example.ticket_booking_system.exception.DuplicateEmailsException;
 import com.example.ticket_booking_system.repository.UserRepository;
@@ -30,7 +31,7 @@ public class UserService {
         User user = new User();
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
-        user.setRole(dto.getRole());
+        user.setRole(Role.CUSTOMER);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
         return user;
     }

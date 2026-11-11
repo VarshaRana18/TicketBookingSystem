@@ -22,6 +22,6 @@ public class CreateUserRequestDto {
     @NotBlank
     private String password;
 
-    @NotNull(message = "Role is required")
-    private Role role;
+//    @NotNull(message = "Role is required")
+//    private Role role;
 }
