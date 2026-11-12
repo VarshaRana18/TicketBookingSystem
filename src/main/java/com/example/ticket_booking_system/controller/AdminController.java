@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("api/admin")
+@RequestMapping("/api/admin")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
@@ -30,9 +30,7 @@ public class AdminController {
             @PathVariable Long userId
 //            ,@Valid @RequestBody UpgradeRoleRequestDto dto
     ) {
-
         String resultMessage = adminService.changeUserRole(userId);
-
         return ResponseEntity.ok(Map.of(
                 "status", "SUCCESS",
                 "message", resultMessage
