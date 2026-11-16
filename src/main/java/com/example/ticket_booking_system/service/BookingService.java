@@ -8,6 +8,8 @@ import com.example.ticket_booking_system.repository.ShowRepository;
 import com.example.ticket_booking_system.exception.ShowSeatNotAvailableException;
 import com.example.ticket_booking_system.repository.TicketRepository;
 import com.example.ticket_booking_system.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class BookingService {
@@ -114,9 +117,15 @@ public class BookingService {
             ticketRepository.saveAll(tickets);
             ticketRepository.flush();
 
-        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+        } catch (DataIntegrityViolationException e) {
+        String reason = e.getMostSpecificCause().getMessage();
+        log.warn("Ticket insert rejected: {}", reason);
+
+        if (reason != null && (reason.contains("uk_ticket_show_seat") || reason.contains("Duplicate entry"))) {
             throw new ShowSeatNotAvailableException("One or more selected seats were just booked by someone else.");
         }
+        throw e;   // a different problem must not be disguised as "seat taken"
+    }
 
         seatMapCacheEvictor.evictAfterCommit(List.of(show.getId()));
 

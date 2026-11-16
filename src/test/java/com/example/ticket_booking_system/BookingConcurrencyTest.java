@@ -1,6 +1,7 @@
 package com.example.ticket_booking_system;
 
 import com.example.ticket_booking_system.dto.InitiateBookingRequestDto;
+import com.example.ticket_booking_system.dto.InitiateBookingResponseDto;
 import com.example.ticket_booking_system.dto.SeatRequestDto;
 import com.example.ticket_booking_system.entity.*;
 import com.example.ticket_booking_system.exception.ShowSeatNotAvailableException;
@@ -113,6 +114,47 @@ class BookingConcurrencyTest {
         }
 
         assertTrue(unexpected.isEmpty(), "Unexpected errors: " + unexpected);
+    }
+
+    @Test
+    void doubleClickOnPayConfirmsOnlyOnce() throws Exception {
+        Long showId = createTestShow();
+        Long userId = createUsers(1).get(0);
+
+        InitiateBookingResponseDto booking =
+                bookingService.initiateBooking(requestFor(showId, "A", 1), userId);
+        Long bookingId = booking.getBookingId();
+
+        int clicks = 2;
+        ExecutorService pool = Executors.newFixedThreadPool(clicks);
+        CountDownLatch start = new CountDownLatch(1);
+        AtomicInteger confirmed = new AtomicInteger();
+        AtomicInteger rejected = new AtomicInteger();
+        List<Throwable> unexpected = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < clicks; i++) {
+            pool.submit(() -> {
+                try {
+                    start.await();
+                    bookingService.confirmPayment(bookingId, userId);
+                    confirmed.incrementAndGet();
+                } catch (IllegalStateException e) {
+                    rejected.incrementAndGet();           // "already processed" is the expected rejection
+                } catch (Throwable t) {
+                    unexpected.add(t);
+                }
+            });
+        }
+
+        start.countDown();
+        pool.shutdown();
+        assertTrue(pool.awaitTermination(30, TimeUnit.SECONDS));
+
+        assertEquals(1, confirmed.get());
+        assertEquals(1, rejected.get());
+        assertTrue(unexpected.isEmpty(), "Unexpected errors: " + unexpected);
+        assertTrue(ticketRepository.findByBookingId(bookingId).stream()
+                .allMatch(t -> t.getStatus() == SeatStatus.BOOKED));
     }
 
     private void attempt(CountDownLatch start, InitiateBookingRequestDto dto,

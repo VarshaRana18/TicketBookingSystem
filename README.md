@@ -1,3 +1,5 @@
+![CI](https://github.com/VarshaRana18/TicketBookingSystem/actions/workflows/ci.yml/badge.svg)
+
 # Ticket Booking System
 
 A REST API for browsing events and booking seats, built with Spring Boot, MySQL and Redis. The focus of the project is **correctness under concurrency** (no double booking) and **measured performance**.

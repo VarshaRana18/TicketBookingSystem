@@ -22,6 +22,7 @@ public class DoubleClickIntegrationTest {
     @Autowired
     private BookingService bookingService;
 
+
     @Test
     public void testDoubleClickPaymentConfirmation() throws InterruptedException {
         Long userId = 3L; // User 1 created by DataSeeder
