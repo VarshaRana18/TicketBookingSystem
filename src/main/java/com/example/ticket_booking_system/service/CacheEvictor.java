@@ -13,25 +13,27 @@ import java.util.Collection;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class SeatMapCacheEvictor {
+public class CacheEvictor {
     private final CacheManager cacheManager;
 
     public void evictAfterCommit(Collection<Long> showIds) {
-        if (showIds.isEmpty()) return;
+        evictAfterCommit("seatmap", showIds);
+    }
+
+    public void evictAfterCommit(String cacheName, Collection<Long> keys) {
+        if (keys.isEmpty()) return;
 
         Runnable evict = () -> {
             try {
-                Cache cache = cacheManager.getCache("seatmap");
-                if (cache != null) showIds.forEach(cache::evict);
+                Cache cache = cacheManager.getCache(cacheName);
+                if (cache != null) keys.forEach(cache::evict);
             } catch (Exception e) {
-                // Booking is already committed. A Redis failure must not break it; the 10s TTL cleans up.
-                log.warn("Failed to evict seatmap cache for shows {}", showIds, e);
+                log.warn("Failed to evict cache '{}' for keys {}", cacheName, keys, e);
             }
         };
 
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                //registerSynchronization tells Spring: Run this code after the current transaction commits. If the transaction rolls back (for example, a seat conflict), it never runs.
                 @Override
                 public void afterCommit() { evict.run(); }
             });

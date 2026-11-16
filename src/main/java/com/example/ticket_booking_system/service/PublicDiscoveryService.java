@@ -38,6 +38,7 @@ public class PublicDiscoveryService {
         }).toList();
     }
 
+    @Cacheable(cacheNames = "shows", key = "#eventId", sync = true)
     public List<ShowResponseDto> getUpcomingShowsForEvent(Long eventId) {
         List<Show> shows = showRepository.findByEventIdAndStartTimeAfterOrderByStartTimeAsc(eventId, LocalDateTime.now());
 
@@ -105,7 +106,6 @@ public class PublicDiscoveryService {
     @Transactional(readOnly = true)
     public List<ShowResponseDto> getShowsByMovieId(Long movieId) {
         List<Show> shows = showRepository.findByEventId(movieId);
-
 
         return shows.stream()
                 .map((show) -> {

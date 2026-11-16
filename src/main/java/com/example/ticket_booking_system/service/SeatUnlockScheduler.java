@@ -20,7 +20,7 @@ import java.util.List;
 public class SeatUnlockScheduler {
     private final TicketRepository ticketRepository;
     private final BookingRepository bookingRepository;
-    private final SeatMapCacheEvictor seatMapCacheEvictor;
+    private final CacheEvictor seatMapCacheEvictor;
     private final Clock clock;
 
     @Scheduled(fixedDelay = 60000) //Changing fixedRate to fixedDelay ensures the next 60-second countdown doesn't start until the current execution finishes, preventing overlapping sweeps.

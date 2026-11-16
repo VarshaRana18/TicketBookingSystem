@@ -2,7 +2,6 @@ package com.example.ticket_booking_system.service;
 
 import com.example.ticket_booking_system.dto.*;
 import com.example.ticket_booking_system.entity.*;
-import com.example.ticket_booking_system.exception.BookingContentionException;
 import com.example.ticket_booking_system.exception.ResourceNotFoundException;
 import com.example.ticket_booking_system.repository.BookingRepository;
 import com.example.ticket_booking_system.repository.ShowRepository;
@@ -31,7 +30,7 @@ public class BookingService {
     private final UserRepository userRepository;
     private final ShowRepository showRepository;
     private final BookingRepository bookingRepository;
-    private final SeatMapCacheEvictor seatMapCacheEvictor;
+    private final CacheEvictor seatMapCacheEvictor;
 
     private final Clock clock;
     @Value("${booking.hold-duration-minutes}")

@@ -6,7 +6,7 @@ import com.example.ticket_booking_system.entity.*;
 import com.example.ticket_booking_system.exception.ShowSeatNotAvailableException;
 import com.example.ticket_booking_system.repository.*;
 import com.example.ticket_booking_system.service.BookingService;
-import com.example.ticket_booking_system.service.SeatMapCacheEvictor;
+import com.example.ticket_booking_system.service.CacheEvictor;
 import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,7 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @ActiveProfiles("test")
 class BookingConcurrencyTest {
     @MockitoBean
-    SeatMapCacheEvictor seatMapCacheEvictor;
+    CacheEvictor seatMapCacheEvictor;
     @Autowired
     BookingService bookingService;
     @Autowired

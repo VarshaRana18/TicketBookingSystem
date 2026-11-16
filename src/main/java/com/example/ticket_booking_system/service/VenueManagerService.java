@@ -20,6 +20,7 @@ public class VenueManagerService{
     private final EventRepository eventRepository;
     private final ShowRepository showRepository;
     private final TicketRepository ticketRepository;
+    private final CacheEvictor cacheEvictor;
 
     public TheatreResponseDto createTheatre(TheatreRequestDto dto, User currentManager) {
         Theatre theatre = new Theatre();
@@ -78,6 +79,8 @@ public class VenueManagerService{
         show.setTicketPrice(dto.getTicketPrice());
 
         Show savedShow = showRepository.save(show);
+
+        cacheEvictor.evictAfterCommit("shows", List.of(event.getId()));
 
         ShowResponseDto res = new ShowResponseDto();
         res.setShowId(savedShow.getId());

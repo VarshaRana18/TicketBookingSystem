@@ -21,6 +21,7 @@ public class CacheConfig {
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(config)
+                .withCacheConfiguration("shows", config.entryTtl(Duration.ofMinutes(2)))
                 .build();
     }
 }
