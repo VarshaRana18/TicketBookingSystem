@@ -1,4 +1,4 @@
-![CI](https://github.com/VarshaRana18/TicketBookingSystem/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/VarshaRana18/TicketBookingSystem/actions/workflows/ci.yaml/badge.svg)
 
 # Ticket Booking System
 
