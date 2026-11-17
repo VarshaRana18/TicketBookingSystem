@@ -1,6 +1,7 @@
 package com.example.ticket_booking_system.service;
 
 import com.example.ticket_booking_system.dto.InitiateBookingRequestDto;
+import com.example.ticket_booking_system.dto.SeatRequestDto;
 import com.example.ticket_booking_system.entity.Booking;
 import com.example.ticket_booking_system.entity.User;
 import com.example.ticket_booking_system.repository.BookingRepository;
@@ -71,5 +72,37 @@ class BookingServiceTest {
 
         assertThrows(IllegalStateException.class, () -> service.confirmPayment(5L, 1L));
         verify(ticketRepository, never()).updateStatusByBookingId(any(), any());
+    }
+
+    @Test
+    void initiateBooking_rejectsWhenExceedingMaxSeats(){
+        InitiateBookingRequestDto dto = new InitiateBookingRequestDto();
+        dto.setShowId(1L);
+        ReflectionTestUtils.setField(service, "MAX_SEATS_PER_BOOKING", 1);
+        dto.setSeats(List.of(
+                new SeatRequestDto("A",1),
+                new SeatRequestDto("A",2),
+                new SeatRequestDto("A",3)));
+
+        assertThrows(IllegalArgumentException.class, () -> service.initiateBooking(dto, 1L));
+    }
+
+    @Test
+    void initiateBooking_failsWhenDuplicateSeatsRequested(){
+        InitiateBookingRequestDto dto = new InitiateBookingRequestDto();
+        List<SeatRequestDto> seats = List.of(
+                new SeatRequestDto("A", 1),
+                new SeatRequestDto("A", 1),
+                new SeatRequestDto("A", 2)
+        );
+        dto.setShowId(1L);
+        dto.setSeats(seats);
+
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> service.initiateBooking(dto, 1L)
+        );
+
+        assertEquals("Duplicate seats found in the request payload.", exception.getMessage());
     }
 }

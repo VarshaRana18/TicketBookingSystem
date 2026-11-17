@@ -170,9 +170,9 @@ class BookingConcurrencyTest {
     }
 
     private SeatRequestDto seat(String row, int number) {
-        SeatRequestDto s = new SeatRequestDto();
-        s.setSeatRow(row);
-        s.setSeatNumber(number);
+        SeatRequestDto s = new SeatRequestDto(row,number);
+//        s.setSeatRow(row);
+//        s.setSeatNumber(number);
         return s;
     }
 
@@ -184,9 +184,9 @@ class BookingConcurrencyTest {
     }
 
     private InitiateBookingRequestDto requestFor(Long showId, String row, int number) {
-        SeatRequestDto seat = new SeatRequestDto();
-        seat.setSeatRow(row);
-        seat.setSeatNumber(number);
+        SeatRequestDto seat = new SeatRequestDto(row,number);
+//        seat.setSeatRow(row);
+//        seat.setSeatNumber(number);
         InitiateBookingRequestDto dto = new InitiateBookingRequestDto();
         dto.setShowId(showId);
         dto.setSeats(List.of(seat));
