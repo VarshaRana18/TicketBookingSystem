@@ -1,10 +1,9 @@
 package com.example.ticket_booking_system.service;
 
 import com.example.ticket_booking_system.dto.InitiateBookingRequestDto;
+import com.example.ticket_booking_system.dto.InitiateBookingResponseDto;
 import com.example.ticket_booking_system.dto.SeatRequestDto;
-import com.example.ticket_booking_system.entity.Booking;
-import com.example.ticket_booking_system.entity.Show;
-import com.example.ticket_booking_system.entity.User;
+import com.example.ticket_booking_system.entity.*;
 import com.example.ticket_booking_system.repository.BookingRepository;
 import com.example.ticket_booking_system.repository.ShowRepository;
 import com.example.ticket_booking_system.repository.TicketRepository;
@@ -62,19 +61,6 @@ class BookingServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.initiateBooking(dto, 1L));
     }
 
-    @Test
-    void confirmPayment_failsWhenHoldExpiredOrAlreadyProcessed() {
-        User owner = new User();
-        owner.setId(1L);
-        Booking booking = new Booking();
-        booking.setUser(owner);
-
-        when(bookingRepository.findById(5L)).thenReturn(Optional.of(booking));
-        when(bookingRepository.confirmIfStillValid(eq(5L), any())).thenReturn(0);
-
-        assertThrows(IllegalStateException.class, () -> service.confirmPayment(5L, 1L));
-        verify(ticketRepository, never()).updateStatusByBookingId(any(), any());
-    }
 
     @Test
     void initiateBooking_rejectsWhenExceedingMaxSeats(){
@@ -120,7 +106,6 @@ class BookingServiceTest {
         Show fakeShow = new Show();
         fakeShow.setId(1L);
         // Your test Clock is fixed at 10:00:00Z. We set the show to 09:00:00Z (1 hour ago)
-        // (Note: Change setStartTime to whatever your Show entity actually uses, like setTime or setShowTime)
         fakeShow.setStartTime(LocalDateTime.parse("2026-11-20T09:00:00"));
 
         // Train the mocks to return our fake data
@@ -132,7 +117,119 @@ class BookingServiceTest {
                 () -> service.initiateBooking(dto, 1L)
         );
 
-        // Verify the exact error message to prove it failed for the right reason
         assertEquals("Tickets can no longer be booked for a show that has already started.", exception.getMessage());assertThrows(IllegalStateException.class,() -> service.initiateBooking(dto, 1L));
+    }
+
+    @Test
+    void cancelPayment_failsOnCancellingNonPendingBooking(){
+        Booking fakeBooking = new Booking();
+        fakeBooking.setId(1L);
+
+        User fakeUser = new User();
+        fakeUser.setId(1L);
+        fakeBooking.setUser(fakeUser);
+
+        when(bookingRepository.findById(1L)).thenReturn(Optional.of(fakeBooking));
+        when(bookingRepository.cancelIfStillPending(1L)).thenReturn(0);
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> service.cancelPayment(1L, 1L)
+        );
+
+        assertEquals("Only pending bookings can be cancelled. This booking may have already been processed.", exception.getMessage());
+
+        verify(ticketRepository, never()).deleteByBookingId(anyLong());
+        verify(cacheEvictor, never()).evictAfterCommit(any());
+    }
+
+    @Test
+    void cancelPayment_failsWhenUserDoesNotOwnBooking() {
+        Booking fakeBooking = new Booking();
+        fakeBooking.setId(1L);
+
+        User owner = new User();
+        owner.setId(1L);
+        fakeBooking.setUser(owner);
+
+        when(bookingRepository.findById(1L)).thenReturn(Optional.of(fakeBooking));
+
+        org.springframework.security.access.AccessDeniedException exception = assertThrows(
+                org.springframework.security.access.AccessDeniedException.class,
+                () -> service.cancelPayment(1L, 2L)
+        );
+
+        assertEquals("You do not have permission to modify this booking.", exception.getMessage());
+
+        // Verify: Guarantee that the database was completely protected
+        verify(bookingRepository, never()).cancelIfStillPending(anyLong());
+        verify(ticketRepository, never()).deleteByBookingId(anyLong());
+    }
+
+    @Test
+    void confirmPayment_failsWhenHoldExpiredOrAlreadyProcessed() {
+        User owner = new User();
+        owner.setId(1L);
+        Booking booking = new Booking();
+        booking.setUser(owner);
+
+        when(bookingRepository.findById(5L)).thenReturn(Optional.of(booking));
+        when(bookingRepository.confirmIfStillValid(eq(5L), any())).thenReturn(0);
+
+        assertThrows(IllegalStateException.class, () -> service.confirmPayment(5L, 1L));
+        verify(ticketRepository, never()).updateStatusByBookingId(any(), any());
+    }
+
+
+    @Test
+    void confirmPayment_failsWhenUserDoesNotOwnBooking() {
+        Booking fakeBooking = new Booking();
+        fakeBooking.setId(1L);
+
+        User owner = new User();
+        owner.setId(1L);
+        fakeBooking.setUser(owner);
+
+        when(bookingRepository.findById(1L)).thenReturn(Optional.of(fakeBooking));
+
+        org.springframework.security.access.AccessDeniedException exception = assertThrows(
+                org.springframework.security.access.AccessDeniedException.class,
+                () -> service.confirmPayment(1L, 2L) // Passing User 2
+        );
+
+        assertEquals("You do not have permission to modify this booking.", exception.getMessage());
+
+        //Verify: Guarantee the database was protected from unauthorized confirmation
+        verify(bookingRepository, never()).confirmIfStillValid(anyLong(), any());
+        verify(ticketRepository, never()).updateStatusByBookingId(anyLong(), any());
+    }
+
+    @Test
+    void confirmPayment_succeedsForValidPendingBooking() {
+        User owner = new User();
+        owner.setId(1L);
+
+        Show fakeShow = new Show();
+        fakeShow.setId(10L);
+
+        Booking fakeBooking = new Booking();
+        fakeBooking.setId(1L);
+        fakeBooking.setUser(owner);
+        fakeBooking.setShow(fakeShow);
+
+        Ticket fakeTicket = new Ticket();
+        fakeTicket.setId(100L);
+
+        when(bookingRepository.findById(1L)).thenReturn(Optional.of(fakeBooking));
+        when(bookingRepository.confirmIfStillValid(eq(1L), any())).thenReturn(1);
+        when(ticketRepository.findByBookingId(1L)).thenReturn(List.of(fakeTicket));
+
+        InitiateBookingResponseDto response = service.confirmPayment(1L, 1L);
+
+        assertNotNull(response);
+        assertEquals(PaymentStatus.SUCCESS.name(), response.getPaymentStatus());
+
+        verify(ticketRepository, times(1)).updateStatusByBookingId(1L, SeatStatus.BOOKED);
+        verify(cacheEvictor, times(1)).evictAfterCommit(List.of(10L));
     }
 }
