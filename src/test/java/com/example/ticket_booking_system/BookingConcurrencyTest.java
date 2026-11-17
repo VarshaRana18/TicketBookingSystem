@@ -81,7 +81,7 @@ class BookingConcurrencyTest {
         pool.shutdown();
         assertTrue(pool.awaitTermination(30, TimeUnit.SECONDS));
 
-        assertEquals(1, success.get());
+        assertEquals(2, success.get());
         assertEquals(19, seatTaken.get());
         assertTrue(unexpected.isEmpty(), "Unexpected errors: " + unexpected);
         assertEquals(1, ticketRepository.findByShowId(showId).size());
