@@ -37,17 +37,17 @@ public class BookingService {
 
     private final Clock clock;
     @Value("${booking.hold-duration-minutes}")
-    private int HoldDurationMinutes;
+    private int HOLD_DURATION_MINUTES;
     @Value("${booking.max-seats-per-booking}")
-    private int MaxSeatsPerBooking;
+    private int MAX_SEATS_PER_BOOKING;
 
     @Transactional
     public InitiateBookingResponseDto initiateBooking(InitiateBookingRequestDto dto, Long userId){
         if (dto.getSeats() == null || dto.getSeats().isEmpty()) {
             throw new IllegalArgumentException("You must select at least one seat.");
         }
-        if (dto.getSeats().size() > MaxSeatsPerBooking) {
-            throw new IllegalArgumentException("You cannot book more than " + MaxSeatsPerBooking + " seats at a time.");
+        if (dto.getSeats().size() > MAX_SEATS_PER_BOOKING) {
+            throw new IllegalArgumentException("You cannot book more than " + MAX_SEATS_PER_BOOKING + " seats at a time.");
         }
 
         long uniqueSeats = dto.getSeats().stream()
@@ -75,7 +75,7 @@ public class BookingService {
         booking.setPaymentStatus(PaymentStatus.PENDING);
         booking.setBookingTime(LocalDateTime.now(clock));
 
-        booking.setExpiresAt(LocalDateTime.now(clock).plusMinutes(HoldDurationMinutes));
+        booking.setExpiresAt(LocalDateTime.now(clock).plusMinutes(HOLD_DURATION_MINUTES));
 
         Booking savedBooking = bookingRepository.save(booking);
 

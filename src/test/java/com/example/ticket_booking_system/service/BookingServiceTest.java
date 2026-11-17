@@ -1,0 +1,75 @@
+package com.example.ticket_booking_system.service;
+
+import com.example.ticket_booking_system.dto.InitiateBookingRequestDto;
+import com.example.ticket_booking_system.entity.Booking;
+import com.example.ticket_booking_system.entity.User;
+import com.example.ticket_booking_system.repository.BookingRepository;
+import com.example.ticket_booking_system.repository.ShowRepository;
+import com.example.ticket_booking_system.repository.TicketRepository;
+import com.example.ticket_booking_system.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+import org.springframework.boot.test.context.SpringBootTest;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Optional;
+
+@ExtendWith(MockitoExtension.class)
+class BookingServiceTest {
+
+    @Mock
+    TicketRepository ticketRepository;
+    @Mock
+    UserRepository userRepository;
+    @Mock
+    ShowRepository showRepository;
+    @Mock
+    BookingRepository bookingRepository;
+    @Mock CacheEvictor cacheEvictor;
+
+    BookingService service;
+
+    @BeforeEach
+    void setUp() {
+        Clock clock = Clock.fixed(Instant.parse("2026-11-20T10:00:00Z"), ZoneOffset.UTC);
+        service = new BookingService(ticketRepository, userRepository, showRepository,
+                bookingRepository,  cacheEvictor,clock);
+        ReflectionTestUtils.setField(service, "HOLD_DURATION_MINUTES", 10);
+        ReflectionTestUtils.setField(service, "MAX_SEATS_PER_BOOKING", 6);
+    }
+
+    @Test
+    void initiateBooking_rejectsEmptySeatList() {
+        InitiateBookingRequestDto dto = new InitiateBookingRequestDto();
+        dto.setShowId(1L);
+        dto.setSeats(List.of());
+
+        assertThrows(IllegalArgumentException.class, () -> service.initiateBooking(dto, 1L));
+    }
+
+    @Test
+    void confirmPayment_failsWhenHoldExpiredOrAlreadyProcessed() {
+        User owner = new User();
+        owner.setId(1L);
+        Booking booking = new Booking();
+        booking.setUser(owner);
+
+        when(bookingRepository.findById(5L)).thenReturn(Optional.of(booking));
+        when(bookingRepository.confirmIfStillValid(eq(5L), any())).thenReturn(0);
+
+        assertThrows(IllegalStateException.class, () -> service.confirmPayment(5L, 1L));
+        verify(ticketRepository, never()).updateStatusByBookingId(any(), any());
+    }
+}
